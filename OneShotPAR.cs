@@ -69,6 +69,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			else if (State == State.Configure)
 			{
+				RealtimeErrorHandling = RealtimeErrorHandling.IgnoreAllErrors;
 				SetProfitTarget(CalculationMode.Ticks, profitTaker);
 //				SetStopLoss(CalculationMode.Ticks, stopLoss);
 			}
@@ -141,6 +142,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			
 		}		
+		
+		
+		protected override void OnOrderUpdate(Order order, double limitPrice, double stopPrice, int quantity, int filled, double averageFillPrice,
+                                    OrderState orderState, DateTime time, ErrorCode error, string nativeError)
+		{
+
+		    // Rejection handling
+		    if (order.OrderState == OrderState.Rejected)
+		    {
+				Print(time.ToString() + " Error: Order rejected, order type " + order.OrderType + " " + nativeError); 
+			}
+		}
 		
 		#region Properties
 				
