@@ -105,8 +105,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			else
 			{
-				SetStopLoss(CalculationMode.Price,ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]);		
-				Print(Time[0] + " Flat, Setting Stop Loss " + (ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]).ToString());
+				//SetStopLoss(CalculationMode.Price,ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]);		
+				//Print(Time[0] + " Flat, Setting Stop Loss " + (ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]).ToString());
 			}
 			
 			if (ParabolicSAR(Close, 0.02, 0.2, 0.02)[0] > High[0]) 
