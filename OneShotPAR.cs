@@ -83,6 +83,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				
 				AddChartIndicator(ParabolicSAR(0.02, 0.2, 0.02));
 				AddChartIndicator(ZLEMA(period));
+				ClearOutputWindow();      
 				
 			}
 		}
@@ -100,13 +101,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 				
 			if (Position.MarketPosition != MarketPosition.Flat)
 			{
-				SetStopLoss(CalculationMode.Price,((Close[0]+ParabolicSAR(Close, 0.02, 0.2, 0.02)[0])/2));
-				Print(Time[0] + " Not Flat, Setting Stop Loss " + ((Close[0]+ParabolicSAR(Close, 0.02, 0.2, 0.02)[0])/2).ToString());
+				SetStopLoss(CalculationMode.Price,ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]);
+				Print(Time[0] + " Not Flat, Setting Stop Loss " + ParabolicSAR(Close, 0.02, 0.2, 0.02)[0].ToString());
 			}
 			else
 			{
-				//SetStopLoss(CalculationMode.Price,ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]);		
-				//Print(Time[0] + " Flat, Setting Stop Loss " + (ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]).ToString());
+				SetStopLoss(CalculationMode.Price,ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]);		
+				Print(Time[0] + " Flat, Setting Stop Loss " + (ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]).ToString());
 			}
 			
 			if (ParabolicSAR(Close, 0.02, 0.2, 0.02)[0] > High[0]) 
