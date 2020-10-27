@@ -61,8 +61,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= false;
 			
-				
-				profitTaker = 1024;
+				exitSD0 = true;
+				profitTaker = 25;
 				stopLoss = 1024;
 				
 				AddPlot(Brushes.Red, "SD0"); //0
@@ -177,27 +177,33 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			
 			
-			bool sell = false;
-			if (Position.Quantity > 0 && Close[0] > Values[0][0]) sell = true;
+			bool sellLong = false;
+			if (exitSD0 && Position.MarketPosition == MarketPosition.Long && Close[0] > Values[0][0]) sellLong = true;
+			if (!exitSD0 && Position.MarketPosition == MarketPosition.Long && Close[0] > vwap[0]) sellLong = true;
 			
 			if (buy0 || buy1 || buy2 || buy3 || buy4) 
 					EnterLong();
-			if (sell)
+			if (sellLong)
 					ExitLong();
 		}
 
 		#region Properties
 
+		[NinjaScriptProperty]
+		[Display(Name="Exit SD0", Description="Exit 0.5 SD + VWAP, else VWAP", Order=1, GroupName="Parameters")]
+		public bool exitSD0
+		{ get; set; }
+		
 		
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="Profit Taker", Description="Points to profit take at", Order=2, GroupName="Parameters")]
+		[Display(Name="Profit Taker Points", Description="Points to profit take at", Order=9, GroupName="Parameters")]
 		public int profitTaker
 		{ get; set; }
 		
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="Stop Loss", Description="Points to set stop loss at", Order=3, GroupName="Parameters")]
+		[Display(Name="Stop Loss Points", Description="Points to set stop loss at", Order=10, GroupName="Parameters")]
 		public int stopLoss
 		{ get; set; }
 		
