@@ -22,22 +22,21 @@ using NinjaTrader.NinjaScript.Indicators;
 using NinjaTrader.NinjaScript.DrawingTools;
 #endregion
 
+//This namespace holds Strategies in this folder and is required. Do not change it. 
 namespace NinjaTrader.NinjaScript.Strategies
 {
-	public class OneShotPAR : Strategy
+	public class Doji : Strategy
 	{
 
 //		private Series<double> upper;
-		bool cocked;
-		string parState;
 
 		
 		protected override void OnStateChange()
 		{
 			if (State == State.SetDefaults)
 			{
-				Description									= @"PAR trader";
-				Name										= "OneShotPAR";
+				Description									= @"Looks for doji reversals, muts be run on range chart";
+				Name										= "Doji";
 				Calculate									= Calculate.OnBarClose;
 				EntriesPerDirection							= 1;
 				EntryHandling								= EntryHandling.AllEntries;
@@ -57,33 +56,25 @@ namespace NinjaTrader.NinjaScript.Strategies
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= true;
 				
-				period = 15;
-				profitTaker = 10;
-				allowMulti = false;
-				cocked = false;
-				parState = "none";
-				
+				height = 6;
+				pullback = 12;
+				profitTaker = 24;
 //				stopLoss = 50;
 				
 				
 			}
 			else if (State == State.Configure)
 			{
-				RealtimeErrorHandling = RealtimeErrorHandling.IgnoreAllErrors;
 				SetProfitTarget(CalculationMode.Ticks, profitTaker);
 //				SetStopLoss(CalculationMode.Ticks, stopLoss);
 			}
 			else if (State == State.DataLoaded)
 			{
 //				upper = new Series<double>(this,MaximumBarsLookBack.Infinite);
-//				if (State != State.Historical && BarsPeriod.BarsPeriodType != BarsPeriodType.Range)
-//				{
-//					MessageBox.Show("You must use the range chart type");
-//				}
-				
-				AddChartIndicator(ParabolicSAR(0.02, 0.2, 0.02));
-				AddChartIndicator(ZLEMA(period));
-				ClearOutputWindow();      
+				if (State != State.Historical && BarsPeriod.BarsPeriodType != BarsPeriodType.Range)
+				{
+					MessageBox.Show("You must use the range chart type");
+				}
 				
 			}
 		}
@@ -98,44 +89,25 @@ namespace NinjaTrader.NinjaScript.Strategies
 //			upper[0] = (std[0] * dev + (SMA(macd,length))[0]);
 //			Print(Time[0] + " Close: " + Close[0] + " MACD: " + macd[0] + " Upper: " + upper[0] + " Lower: " + lower[0] );
 			
+			//determine doji up or bottom
+			bool dojiUp = false;
+			bool dojiDown = false;
+			double oc = (Close[0] - Open[0]) * 4;
+			if (oc < 0 && Math.Abs(oc) <= height) dojiDown = true;
+			if (oc > 0 && oc <= height) dojiUp = true;
 				
-			if (Position.MarketPosition != MarketPosition.Flat)
+			if (Position.MarketPosition == MarketPosition.Flat && dojiUp)
 			{
-				SetStopLoss(CalculationMode.Price,ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]);
-				Print(Time[0] + " Not Flat, Setting Stop Loss " + ParabolicSAR(Close, 0.02, 0.2, 0.02)[0].ToString());
+				EnterLongLimit(High[0] - (pullback / 4));
+				SetStopLoss(CalculationMode.Price,Low[0] - 0.25);
 			}
-			else
+		
+			if (Position.MarketPosition == MarketPosition.Flat && dojiDown)
 			{
-				SetStopLoss(CalculationMode.Price,ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]);		
-				Print(Time[0] + " Flat, Setting Stop Loss " + (ParabolicSAR(Close, 0.02, 0.2, 0.02)[0]).ToString());
+				EnterShortLimit(Low[0] + (pullback / 4));
+				SetStopLoss(CalculationMode.Price,High[0] + 0.25);
 			}
-			
-			if (ParabolicSAR(Close, 0.02, 0.2, 0.02)[0] > High[0]) 
-			{
-				if (parState != "high") cocked = true;
-				parState = "high";
-			}
-			else 
-			{
-				if (parState != "low") cocked = true;
-				parState = "low";
-			}
-			
-			if ((cocked || allowMulti) && parState == "high" && Close[0] > ZLEMA(period)[0])
-			{
-				if (GetCurrentBid() > Close[0]-0.5) EnterShortStopLimit(Close[0]-0.5,Close[0]-0.5);
-				else EnterShortLimit(Close[0]-0.5);
-				cocked = false;
-			}
-			
-			if ((cocked || allowMulti) && parState == "low" && Close[0] < ZLEMA(period)[0])
-			{
-				if (GetCurrentAsk() < Close[0]+0.5) EnterLongStopLimit(Close[0]+0.5,Close[0]+0.5);
-				else EnterLongLimit(Close[0]+0.5);
-				cocked = false;
-			}
-			
-
+				
 			
 		}
 		
@@ -144,29 +116,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 		}		
 		
-		
-		protected override void OnOrderUpdate(Order order, double limitPrice, double stopPrice, int quantity, int filled, double averageFillPrice,
-                                    OrderState orderState, DateTime time, ErrorCode error, string nativeError)
-		{
-
-		    // Rejection handling
-		    if (order.OrderState == OrderState.Rejected)
-		    {
-				Print(time.ToString() + " Error: Order rejected, order type " + order.OrderType + " " + nativeError); 
-			}
-		}
-		
 		#region Properties
 				
 			[Range(1, int.MaxValue), NinjaScriptProperty]
-			[Display(Name="Period", Description="", Order=1, GroupName="Parameters")]
-			public int period
+			[Display(Name="Doji Ticks", Description="", Order=1, GroupName="Parameters")]
+			public int height
 			{ get; set; }
 			
-			[Display(Name="Allow Multi-Entry", Description="", Order=2, GroupName="Parameters")]
-			public bool allowMulti
+			[Range(0, double.MaxValue), NinjaScriptProperty]
+			[Display(Name="Pullback Ticks", Description="The amount of ticks for the limit order", Order=2, GroupName="Parameters")]
+			public double pullback
 			{ get; set; }
-			
 
 			[NinjaScriptProperty]
 			[Range(1, int.MaxValue)]
