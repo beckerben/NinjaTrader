@@ -25,6 +25,9 @@ using NinjaTrader.NinjaScript.DrawingTools;
 //This namespace holds Strategies in this folder and is required. Do not change it. 
 namespace NinjaTrader.NinjaScript.Strategies
 {
+	/// <summary>
+	/// Depends on the VWAP8 indicator which is available via community indicators
+	/// </summary>
 	public class VWAPAnticipatedMove : Strategy
 	{
 
@@ -61,7 +64,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= false;
 			
-				exitSD0 = true;
+				exitLongSD05 = true;
+				exitShortSD05 = true;
 				profitTaker = 25;
 				stopLoss = 1024;
 				
@@ -114,14 +118,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 				SetProfitTarget(CalculationMode.Ticks, profitTaker*4);
 			}
 			
-			// If a long position is open, allow for stop loss modification to breakeven
-			else if (Position.MarketPosition == MarketPosition.Long)
+			// If a position is open, allow for stop loss modification to breakeven
+			else if (Position.Quantity > 0)
 			{
-				// Once the price is greater than entry price+50 ticks, set stop loss to breakeven
+				// Once the price is greater than entry price+profit taker, set stop loss
 				if (priorAveragePrice != Position.AveragePrice)
 				{
-					SetProfitTarget(CalculationMode.Price, Position.AveragePrice + profitTaker);
-					SetStopLoss(CalculationMode.Price, Position.AveragePrice - stopLoss);
+					if (Position.MarketPosition == MarketPosition.Long) 
+					{
+						SetProfitTarget(CalculationMode.Price, Position.AveragePrice + profitTaker);
+						SetStopLoss(CalculationMode.Price, Position.AveragePrice - stopLoss);
+					}
+					if (Position.MarketPosition == MarketPosition.Short)
+					{
+						SetProfitTarget(CalculationMode.Price, Position.AveragePrice - profitTaker);
+						SetStopLoss(CalculationMode.Price, Position.AveragePrice + stopLoss);
+					}
 					priorAveragePrice = Position.AveragePrice;
 				}
 			}			
@@ -132,66 +144,128 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 		
 			//calculate the offsets from the vwap
+			//above
 			Values[0][0] = vwap[0] + (sd * 0.5);
 			Values[1][0] = vwap[0] + sd;
 			Values[2][0] = vwap[0] + (sd * 2);
 			Values[3][0] = vwap[0] + (sd * 3);
 			Values[4][0] = vwap[0] + (sd * 4);
+			//below
 			Values[5][0] = vwap[0] - (sd * 0.5);
 			Values[6][0] = vwap[0] - sd;
 			Values[7][0] = vwap[0] - (sd * 2);
 			Values[8][0] = vwap[0] - (sd * 3);
 			Values[9][0] = vwap[0] - (sd * 4);	
 			
-			//determine the buy signals
-			bool buy0 = false;
-			bool buy1 = false;
-			bool buy2 = false;
-			bool buy3 = false;
-			bool buy4 = false;
+			
+			//determine the long signals
+			#region LongSignals
+			bool long0 = false;
+			bool long1 = false;
+			bool long2 = false;
+			bool long3 = false;
+			bool long4 = false;
+			
 			
 			if (Position.Quantity == 0 && Close[0] < Values[5][0] )
 			{
-				buy0 = true;	
+				long0 = true;	
 			}
 			
 			if (Position.Quantity == 1 && Close[0] < Values[6][0] )
 			{
-				buy1 = true;	
+				long1 = true;	
 			}
 			
 			if (Position.Quantity == 2 && Close[0] < Values[7][0] )
 			{
-				buy2 = true;	
+				long2 = true;	
 			}
 			
 			if (Position.Quantity == 3 && Close[0] < Values[8][0] )
 			{
-				buy3 = true;	
+				long3 = true;	
 			}
 			
 			if (Position.Quantity >= 4 && Close[0] < Values[9][0] && CurrentBar >  buffer )
 			{
-				buy4 = true;	
+				long4 = true;	
 				buffer = CurrentBar + 15;
 			}
 			
+			//long exit logic
+			bool exitLong = false;
+			if (exitLongSD05 && Position.MarketPosition == MarketPosition.Long && Close[0] > Values[0][0]) exitLong = true;
+			if (!exitLongSD05 && Position.MarketPosition == MarketPosition.Long && Close[0] > vwap[0]) exitLong = true;
 			
-			bool sellLong = false;
-			if (exitSD0 && Position.MarketPosition == MarketPosition.Long && Close[0] > Values[0][0]) sellLong = true;
-			if (!exitSD0 && Position.MarketPosition == MarketPosition.Long && Close[0] > vwap[0]) sellLong = true;
+			#endregion //LongSignals
 			
-			if (buy0 || buy1 || buy2 || buy3 || buy4) 
+			
+			//determine the short signals
+			#region ShortSignals
+			bool short0 = false;
+			bool short1 = false;
+			bool short2 = false;
+			bool short3 = false;
+			bool short4 = false;
+			
+			
+			if ((Position.Quantity == 0 && Close[0] > Values[0][0] ) || (exitLong && Close[0] > Values[0][0]))
+			{
+				short0 = true;	
+			}
+			
+			if (Position.MarketPosition == MarketPosition.Short && Position.Quantity == 1 && Close[0] > Values[1][0] )
+			{
+				short1 = true;	
+			}
+			
+			if (Position.MarketPosition == MarketPosition.Short && Position.Quantity == 2 && Close[0] > Values[2][0] )
+			{
+				short2 = true;	
+			}
+			
+			if (Position.MarketPosition == MarketPosition.Short && Position.Quantity == 3 && Close[0] > Values[3][0] )
+			{
+				short3 = true;	
+			}
+			
+			if (Position.MarketPosition == MarketPosition.Short && Position.Quantity >= 4 && Close[0] > Values[4][0] && CurrentBar >  buffer )
+			{
+				short4 = true;	
+				buffer = CurrentBar + 15;
+			}
+			
+			//short exit logic
+			bool exitShort = false;
+			if (exitShortSD05 && Position.MarketPosition == MarketPosition.Short && Close[0] < Values[5][0]) exitShort = true;
+			if (!exitShortSD05 && Position.MarketPosition == MarketPosition.Short && Close[0] < vwap[0]) exitShort = true;
+			
+			#endregion //ShortSignals
+			
+			
+			//execute the entries
+			if ((Position.MarketPosition == MarketPosition.Flat || Position.MarketPosition == MarketPosition.Long) && (long0 || long1 || long2 || long3 || long4))
 					EnterLong();
-			if (sellLong)
+			if (exitLong)
 					ExitLong();
+			
+			if ((Position.MarketPosition == MarketPosition.Flat || Position.MarketPosition == MarketPosition.Short) && (short0 || short1 || short2 || short3 || short4))
+					EnterShort();
+			if (exitShort)
+					ExitShort();
 		}
 
 		#region Properties
 
 		[NinjaScriptProperty]
-		[Display(Name="Exit SD0", Description="Exit 0.5 SD + VWAP, else VWAP", Order=1, GroupName="Parameters")]
-		public bool exitSD0
+		[Display(Name="Exit Long SD+0.5", Description="Exit VWAP + 0.5 SD, else VWAP", Order=1, GroupName="Parameters")]
+		public bool exitLongSD05
+		{ get; set; }
+		
+		[NinjaScriptProperty]
+		[Display(Name="Exit Short SD-0.5", Description="Exit VWAP - 0.5 SD, else VWAP", Order=2, GroupName="Parameters")]
+		public bool exitShortSD05
 		{ get; set; }
 		
 		
