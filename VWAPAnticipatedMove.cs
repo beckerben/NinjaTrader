@@ -97,7 +97,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				
 				//add the indicators
 				AddChartIndicator(vwap);
-
+				AddChartIndicator(CamarillaPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20));
 			}
 		}
 
