@@ -42,7 +42,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (State == State.SetDefaults)
 			{
-				
 				Description = @"This strategy leverages the VIX to calculated an expected move range up to 4 standard deviations and trades accordingly. ";
 				Name = "VWAPAnticipatedMove";
 				Calculate									= Calculate.OnBarClose;
@@ -110,6 +109,24 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (CurrentBars[0] < (BarsRequiredToTrade))
 				return;
 		
+			double cR1 = 0;
+			double cR3 = 0;
+			double cR4 = 0;
+			double cS1 = 0;
+			double cS3 = 0;
+			double cS4 = 0;
+			
+			// Evaluates that this is a valid pivot point value
+			if (CamarillaPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20).S4.IsValidDataPoint(0))
+			{
+				// Prints the current pivot point value
+				cR1 = CamarillaPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20).R1[0];
+				cR3 = CamarillaPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20).R3[0];
+				cR4 = CamarillaPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20).R4[0];
+				cS1 = CamarillaPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20).S1[0];
+				cS3 = CamarillaPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20).S3[0];
+				cS4 = CamarillaPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20).S4[0];
+			}
 			
 			// Resets the stop loss to the original value when all positions are closed
 			if (Position.MarketPosition == MarketPosition.Flat)
@@ -127,12 +144,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 					if (Position.MarketPosition == MarketPosition.Long) 
 					{
 						SetProfitTarget(CalculationMode.Price, Position.AveragePrice + profitTaker);
-						SetStopLoss(CalculationMode.Price, Position.AveragePrice - stopLoss);
+						SetStopLoss(CalculationMode.Price, cS4);
 					}
 					if (Position.MarketPosition == MarketPosition.Short)
 					{
 						SetProfitTarget(CalculationMode.Price, Position.AveragePrice - profitTaker);
-						SetStopLoss(CalculationMode.Price, Position.AveragePrice + stopLoss);
+						SetStopLoss(CalculationMode.Price, cR4);
 					}
 					priorAveragePrice = Position.AveragePrice;
 				}
@@ -141,7 +158,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			//calculate the standard deviation 
 			double sd = (vwap[0] * (Closes[1][0] / 100) * Math.Sqrt(calDays / 365)) / calDays;
-			
+			Print("VX: " + Closes[1][0].ToString() + " SD: " + sd.ToString());
 		
 			//calculate the offsets from the vwap
 			//above
@@ -157,8 +174,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			Values[8][0] = vwap[0] - (sd * 3);
 			Values[9][0] = vwap[0] - (sd * 4);	
 			
-			
+			///********************************************************************************************************
 			//determine the long signals
+			///********************************************************************************************************
 			#region LongSignals
 			bool long0 = false;
 			bool long1 = false;
@@ -167,7 +185,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 			bool long4 = false;
 			
 			
-			if (Position.Quantity == 0 && Close[0] < Values[5][0] )
+			if (Position.Quantity == 0 
+				&& Close[0] < Values[5][0]  
+				&& Close[0] > Values[6][0] && Close[0] < cR1
+				&& cS4 < Values[7][0])
 			{
 				long0 = true;	
 			}
@@ -200,8 +221,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			#endregion //LongSignals
 			
-			
+			///********************************************************************************************************
 			//determine the short signals
+			///********************************************************************************************************
 			#region ShortSignals
 			bool short0 = false;
 			bool short1 = false;
@@ -210,7 +232,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 			bool short4 = false;
 			
 			
-			if ((Position.Quantity == 0 && Close[0] > Values[0][0] ) || (exitLong && Close[0] > Values[0][0]))
+			if ((Position.Quantity == 0 
+				&& Close[0] > Values[0][0] 
+				&& Close[0] < Values[1][0] 
+				&& Close[0] > cS1
+				&& cR4 > Values[2][0]
+				) || 
+				(exitLong 
+				&& Close[0] > Values[0][0] 
+				&& Close[0] < Values[1][0] 
+				&& Close[0] > cS1
+				&& cR4 > Values[2][0]))
 			{
 				short0 = true;	
 			}
