@@ -29,8 +29,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 	public class Exporter : Strategy
 	{
 		private ParabolicSAR ParabolicSAR1;
-		private string path;
 		private StreamWriter sw; // a variable for the StreamWriter that will be used 
+		private bool priorCloseHigher = false;
+		private int trendSequence = 1;
 
 		protected override void OnStateChange()
 		{
@@ -53,7 +54,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
 				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
 				BarsRequiredToTrade							= 20;
-				path 			= "C:\\temp\\NQ.csv"; 
+				outputFile = "C:\\temp\\NQ.csv"; 
 				// Disable this property for performance gains in Strategy Analyzer optimizations
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= true;
@@ -77,7 +78,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			else if (State == State.DataLoaded)
 			{				
-				sw = File.AppendText(path);  // Open the path for writing
+				sw = File.AppendText(outputFile);  // Open the path for writing
 			}
 		}
 
@@ -87,12 +88,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (CurrentBars[0] == 0) 
 			{
 				//sw = File.AppendText(path);  // Open the path for writing
-				sw.WriteLine("date," + 
+				sw.WriteLine("barcount," + 
+					"date," + 
 					"open,"+
 					"high,"+
 					"low,"+
 					"close,"+
 					"volume,"+
+					"higherclose,"+
+				    "trendsequence," + 
 					"adl,"+
 					"adx," +
 					"adxr,"+
@@ -166,13 +170,28 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			if (CurrentBars[0] < BarsRequiredToTrade) return;
 			
+			bool closehigher = false;
+			if(Close[0] > Close[1]) 
+				closehigher = true;
+			else 
+				closehigher = false;
+			
+			if (priorCloseHigher != closehigher)
+			 	trendSequence = 1;
+			else
+				trendSequence++;
+			
+			priorCloseHigher = closehigher;
+			
 			//sw = File.AppendText(path);  // Open the path for writing
-			sw.WriteLine(Time[0] + "," + 
+			sw.WriteLine(CurrentBar.ToString() + "," + Time[0].ToString("yyyy-MM-dd HH:mm:ss") + "," + 
 				Open[0].ToString() + "," +
 				High[0].ToString() + "," + 
 				Low[0].ToString() + "," + 
 				Close[0].ToString() + "," + 
-				Volume[0].ToString() + "," + 
+				Volume[0].ToString() + "," +
+				closehigher.ToString() + "," +
+				trendSequence.ToString() + "," +
 				ADL().AD[0].ToString() + "," + 
 				ADX(14)[0].ToString() + "," + 
 				ADXR(10,14)[0].ToString() + "," + 
@@ -247,7 +266,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 		#region Properties
 		
-
+			[Display(Name="Output file", Description="e.g. c:\\temp\\out.csv",Order=1,GroupName="Parameters")]
+			public string outputFile
+			{get; set;}		
+			
 //			[Range(1, int.MaxValue), NinjaScriptProperty]
 //			[Display(Name="Desired Ticks", Description="Desired Ticks", Order=1, GroupName="Parameters")]
 //			public int ticks
