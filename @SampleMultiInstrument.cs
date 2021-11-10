@@ -54,11 +54,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			else if (State == State.DataLoaded)
 			{
+				// Instantiate indicators in State.DataLoaded is the best practice.
 				rsi = RSI(14, 1);
 				adx = ADX(14);
+				
+				// Note: Bars are added to the BarsArray and can be accessed via an index value
+				// E.G. BarsArray[1] ---> Accesses the 1 minute Bars added above
+				adx1 = ADX(BarsArray[1], 14);
 
 				// Add RSI and ADX indicators to the chart for display
 				// This only displays the indicators for the primary Bars object (main instrument) on the chart
+				// Note:  Only indicators using the chart data primary series can be displayed using AddChartIndicator()
 				AddChartIndicator(rsi);
 				AddChartIndicator(adx);
 			}
@@ -66,20 +72,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		protected override void OnBarUpdate()
 		{
-			if (CurrentBar < BarsRequiredToTrade)
+			if (CurrentBar < BarsRequiredToTrade || CurrentBars[0] < 0 || CurrentBars[1] < 0)
 				return;
-
-			// Note: Bars are added to the BarsArray and can be accessed via an index value
-			// E.G. BarsArray[1] ---> Accesses the 1 minute Bars added above
-			if (adx1 == null)
-				adx1 = ADX(BarsArray[1], 14);
 
 			// OnBarUpdate() will be called on incoming tick events on all Bars objects added to the strategy
 			// We only want to process events on our primary Bars object (main instrument) (index = 0) which
 			// is set when adding the strategy to a chart
 			if (BarsInProgress != 0)
-				return;
-			if (CurrentBars[0] < 0 || CurrentBars[1] < 0)
 				return;
 
 			// Checks if the 14 period ADX on both instruments are trending (above a value of 30)

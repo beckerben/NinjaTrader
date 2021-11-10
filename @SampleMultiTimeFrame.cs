@@ -57,12 +57,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			else if (State == State.DataLoaded)
 			{
+				// Best practice is to instantiate indicators in State.DataLoaded.
 				sma50B0 = SMA(50);
 				sma5B0 = SMA(5);
-
+				
+				// Note: Bars are added to the BarsArray and can be accessed via an index value
+				// E.G. BarsArray[1] ---> Accesses the 5 minute Bars object added above
+				sma50B1 = SMA(BarsArray[1], 50);
+				sma50B2 = SMA(BarsArray[2], 50);
+				sma5B1  = SMA(BarsArray[1], 5);
+				sma5B2  = SMA(BarsArray[2], 5);
 
 				// Add simple moving averages to the chart for display
 				// This only displays the SMA's for the primary Bars object on the chart
+				// Note only indicators based on the charts primary data series can be added.
 				AddChartIndicator(sma5B0);
 				AddChartIndicator(sma50B0);
 			}
@@ -70,27 +78,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		protected override void OnBarUpdate()
 		{
-			if (CurrentBar < BarsRequiredToTrade)
+			if (CurrentBar < BarsRequiredToTrade || CurrentBars[0] < 1 || CurrentBars[1] < 1 || CurrentBars[2] < 1)
 				return;
-
-			if (sma50B1 == null || sma50B2 == null || sma5B1 == null || sma5B2 == null)
-			{
-				// Note: Bars are added to the BarsArray and can be accessed via an index value
-				// E.G. BarsArray[1] ---> Accesses the 5 minute Bars object added above
-				sma50B1 = SMA(BarsArray[1], 50);
-				sma50B2 = SMA(BarsArray[2], 50);
-				sma5B1  = SMA(BarsArray[1], 5);
-				sma5B2  = SMA(BarsArray[2], 5);
-			}
-
+		
 			// OnBarUpdate() will be called on incoming tick events on all Bars objects added to the strategy
 			// We only want to process events on our primary Bars object (index = 0) which is set when adding
 			// the strategy to a chart
 			if (BarsInProgress != 0)
-				return;
-
-			if (CurrentBars[0] < 1 || CurrentBars[1] < 1 || CurrentBars[2] < 1)
-				return;
+				return;		
 
 			// Checks  if the 5 period SMA is above the 50 period SMA on both the 5 and 15 minute time frames
 			if (sma5B1[0] > sma50B1[0] && sma5B2[0] > sma50B2[0])
