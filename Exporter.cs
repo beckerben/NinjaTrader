@@ -63,55 +63,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return result;
 		}		
 
-		#endregion // Private methods
-		
-		#region Main methods
-		protected override void OnStateChange()
+		private void WriteHeader(StreamWriter writer)
 		{
-			if (State == State.SetDefaults)
+			if (writer != null)
 			{
-				Description									= @"Exporter";
-				Name										= "Exporter";
-				Calculate									= Calculate.OnBarClose;
-				EntriesPerDirection							= 1;
-				EntryHandling								= EntryHandling.AllEntries;
-				IsExitOnSessionCloseStrategy				= true;
-				ExitOnSessionCloseSeconds					= 30;
-				IsFillLimitOnTouch							= false;
-				MaximumBarsLookBack							= MaximumBarsLookBack.Infinite;
-				OrderFillResolution							= OrderFillResolution.Standard;
-				Slippage									= 0;
-				StartBehavior								= StartBehavior.WaitUntilFlat;
-				TimeInForce									= TimeInForce.Gtc;
-				TraceOrders									= false;
-				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
-				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
-				BarsRequiredToTrade							= 20;
-				outputFile = "C:\\temp\\NQ.csv"; 
-				// Disable this property for performance gains in Strategy Analyzer optimizations
-				// See the Help Guide for additional information
-				IsInstantiatedOnEachOptimizationIteration	= true;
-				Enable_Time = false;
-
-			}
-			// Necessary to call in order to clean up resources used by the StreamWriter object
-			else if(State == State.Terminated)
-			{
-				if (sw != null)
-				{
-					sw.Close();
-					sw.Dispose();
-					sw = null;
-				}
-			}			
-			else if (State == State.Configure)
-			{
-			}
-			else if (State == State.DataLoaded)
-			{				
-				sw = File.AppendText(outputFile);  // Open the path for writing
-				//write the header
-				sw.WriteLine("barcount," + 
+				writer.WriteLine("barcount," + 
 					"date," + 
 					"open,"+
 					"high,"+
@@ -189,7 +145,88 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"wisemanawesomeoscillator,"+
 					"woodiescci,"+
 					"woodiescci_turbo"
-				); 			
+				); 						
+			}
+		}
+		#endregion // Private methods
+		
+		#region Main methods
+		protected override void OnStateChange()
+		{
+			if (State == State.SetDefaults)
+			{
+				Description									= @"Exporter";
+				Name										= "Exporter";
+				Calculate									= Calculate.OnBarClose;
+				EntriesPerDirection							= 1;
+				EntryHandling								= EntryHandling.AllEntries;
+				IsExitOnSessionCloseStrategy				= true;
+				ExitOnSessionCloseSeconds					= 30;
+				IsFillLimitOnTouch							= false;
+				MaximumBarsLookBack							= MaximumBarsLookBack.Infinite;
+				OrderFillResolution							= OrderFillResolution.Standard;
+				Slippage									= 0;
+				StartBehavior								= StartBehavior.WaitUntilFlat;
+				TimeInForce									= TimeInForce.Gtc;
+				TraceOrders									= false;
+				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
+				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
+				BarsRequiredToTrade							= 20;
+				// Disable this property for performance gains in Strategy Analyzer optimizations
+				// See the Help Guide for additional information
+				IsInstantiatedOnEachOptimizationIteration	= true;
+				Enable_Time = false;
+				outputPath = "C:\\Temp";
+				outputFile = null;
+			}
+			// Necessary to call in order to clean up resources used by the StreamWriter object
+			else if(State == State.Terminated)
+			{
+				if (sw != null)
+				{
+					sw.Close();
+					sw.Dispose();
+					sw = null;
+				}
+			}			
+			else if (State == State.Configure)
+			{
+			}
+			else if (State == State.DataLoaded)
+			{				
+				// Check if outputFile is null or empty
+				if (string.IsNullOrEmpty(outputFile))
+				{
+				    // Create a default file name based on the current date and time
+				    string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+				    outputFile = $"{Instrument.FullName.Replace(" ", "").Replace("-", "")}_{timestamp}.csv";
+				}
+				
+				// Combine the outputPath and outputFile to create the full file path
+				string fullPath = Path.Combine(outputPath, outputFile);				
+				
+				// Check if the file exists
+				if (!File.Exists(fullPath))
+				{
+				    // Create the file and write the header
+				    using (StreamWriter sw = File.CreateText(fullPath))
+				    {
+				        WriteHeader(sw);
+				    }
+				}
+				else
+				{
+				    // Check if the file is empty
+				    if (new FileInfo(fullPath).Length == 0)
+				    {
+				        using (StreamWriter sw = File.AppendText(fullPath))
+				        {
+				            WriteHeader(sw);
+				        }
+				    }
+				}
+				//leave writer open for append
+				sw = File.AppendText(fullPath);
 			}
 		}
 
@@ -212,7 +249,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			priorCloseHigher = closehigher;
 			
-			//sw = File.AppendText(path);  // Open the path for writing
 			sw.WriteLine(CurrentBar.ToString() + "," + Time[0].ToString("yyyy-MM-dd HH:mm:ss") + "," + 
 				Open[0].ToString() + "," +
 				High[0].ToString() + "," + 
@@ -246,7 +282,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				MACD(12,26,9)[0].ToString() + "," +
 				MACD(12,26,9).Avg[0].ToString() + "," +
 				MACD(12,26,9).Diff[0].ToString() + "," +
-				//McClellanOscillator(19,30)[0].ToString() + "," +
+				//McClellanOscillator(19,39)[0].ToString() + "," +
 				MFI(14)[0].ToString() + "," +
 				Momentum(14)[0].ToString() + "," +
 				MoneyFlowOscillator(20)[0].ToString() + "," +
@@ -299,7 +335,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		#region Properties
 		
-			[Display(Name="Output file", Description="e.g. c:\\temp\\out.csv",Order=1,GroupName="Output")]
+			[Display(Name="Output path", Description="e.g. c:\\temp",Order=1,GroupName="Output")]
+			public string outputPath
+			{get; set;}				
+		
+			[Display(Name="Output file", Description="e.g. output.csv",Order=2,GroupName="Output")]
 			public string outputFile
 			{get; set;}		
 
