@@ -92,7 +92,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				
 				//add the indicators
 				//AddChartIndicator(vwap);
-				AddChartIndicator(ParabolicSAR(0.02, 0.2, 0.02));
+				AddChartIndicator(ParabolicSAR1);
 
 			}
 		}

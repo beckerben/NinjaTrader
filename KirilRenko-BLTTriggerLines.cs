@@ -33,7 +33,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 	[Gui.CategoryOrder("Trading", 1000400)]
 	[Gui.CategoryOrder("Display", 1000500)]
 	[Gui.CategoryOrder("ATM", 1000600)]
-	public class BarSequence : Strategy
+	public class KirilRenkoBLTTriggerLines : Strategy
 	{
 		#region Classes
 		
@@ -82,12 +82,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 		#region Variables
 		
 		//indicator variables
-		private Indicator _nBarsDown;
-		private Indicator _nBarsUp;
-		private Indicator _momentum;
-		private int _barCount = 3;
-		private int _direction = 1;
-				
+		private Indicator _bltTrigger;
+		private MAType _triggerMAType = MAType.LinReg;
+        private int _triggerPeriod = 80;
+        private MAType _averageMAType = MAType.ZLEMA;
+        private int _averagePeriod = 20;
+		
 		//core variables
 		private PositionInfo _positionInfo;
 		private PositionInfo _lastPositionInfo;
@@ -108,23 +108,23 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (State == State.SetDefaults)
 			{
-				Description									= @"Strategy which uses the up/down bars";
-				Name										= "BarSequence";
+				Description									= @"Renko Strategy for Kiril w/BLTTriggerLines, this leverages the BLTTrigger Lines indicator and allows entry points basd on crossover of the trigger & moving average trends.  The indicator was authored by bltdavid and is required to be installed for this strategy.  The indicator is availalbe here https://ninjatraderecosystem.com/user-app-share-download/blttriggerlines-user-selectable-mas-with-region-coloring-2/.  This strategy was authored by Ben Becker in collaboration with Kiril.";
+				Name										= "Kiril-BLTTriggerLines";
 				Calculate									= Calculate.OnBarClose;
 				EntriesPerDirection							= 1;
 				EntryHandling								= EntryHandling.AllEntries;
 				IsExitOnSessionCloseStrategy				= true;
 				ExitOnSessionCloseSeconds					= 30;
-				IsFillLimitOnTouch							= true;
+				IsFillLimitOnTouch							= false;
 				MaximumBarsLookBack							= MaximumBarsLookBack.TwoHundredFiftySix;
-				OrderFillResolution							= OrderFillResolution.High;
+				OrderFillResolution							= OrderFillResolution.Standard;
 				Slippage									= 0;
 				StartBehavior								= StartBehavior.WaitUntilFlat;
 				TimeInForce									= TimeInForce.Gtc;
 				TraceOrders									= false;
 				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
 				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
-				BarsRequiredToTrade							= _barCount + 2;
+				BarsRequiredToTrade							= 20;
 				// Disable this property for performance gains in Strategy Analyzer optimizations
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= true;
@@ -141,22 +141,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Stop_Loss_Ticks = 15;
 				Enable_Trading_Time = false;
 				Disable_Trading_By_Loss_Amount = false;
-				Disable_Trading_By_Profit_Amount = false;
 				No_Trading_Loss_Amount = 0d;
-				No_Trading_Profit_Amount = 0d;
 				Atm_Strategy_Template = string.Empty;
-				Range_Ticks = 20;
-				Entry_Pullback_Ticks = 4;
-				
 			}
 			else if (State == State.Configure)
 			{
-				_nBarsUp = NBarsUp(_barCount,true,true,true);
-				_nBarsDown = NBarsDown(_barCount,true,true,true);
-				_momentum = Momentum(HMA(100),1);
-				AddChartIndicator(_nBarsUp);
-				AddChartIndicator(_nBarsDown);
-				AddChartIndicator(_momentum);
+				_bltTrigger = BltTriggerLines(TriggerMAType,TriggerPeriod,AverageMAType,AveragePeriod,ColorStyle.RegionColors,true,30,Brushes.Blue,Brushes.Red,true,30,Brushes.Cyan,Brushes.Red,false,"Alert4.wav",Brushes.Lime,Brushes.Yellow,Brushes.Cyan,Brushes.Red);
+				AddChartIndicator(_bltTrigger);
 				
 				_positionInfo = new PositionInfo();
 				_lastPositionInfo = new PositionInfo();
@@ -288,13 +279,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 			var result = false;
 
-			//trigger if we are the first bar up flag
-			//if (_nBarsUp[0] == 1 && _nBarsUp[1] == 0 && _momentum[0] > -0.2)
-			if (_nBarsUp[0] == 1 && _nBarsUp[1] == 0 )
-			//trigger if we are a bar sequence up flag
-			//if (_nBarsUp[0] == 1)				
-			//trigger if we are a bar down flag, catching reversal
-			//if (_nBarsDown[0] == 1)
+			if (CrossAbove(_bltTrigger.Values[0],_bltTrigger.Values[1],1) )
 			{
 				result = true;
 			}
@@ -308,14 +293,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				return false;
 			
 			var result = false;
-			
-			//trigger if we are the first bar down flag
-			//if (_nBarsDown[0] == 1 && _nBarsDown[1] == 0 && _momentum[0] < 0.2)
-			if (_nBarsDown[0] == 1 && _nBarsDown[1] == 0)
-			//trigger if we are a down flag
-			//if (_nBarsDown[0] == 1)
-			//trigger if we are a bar up flag, catching reversal
-			//if (_nBarsUp[0] == 1)
+
+			if (CrossBelow(_bltTrigger.Values[0],_bltTrigger.Values[1],1) )
 			{
 				result = true;
 			}
@@ -395,7 +374,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			UpdatePositionInfo();
 		}
-				
+		
+		
 		private void UpdatePositionInfo()
 		{
 			if (string.IsNullOrEmpty(_atmStrategyId) || !_isAtmStrategyCreated)
@@ -433,7 +413,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 				PrintPositionChanged();
 			}
 		}		
-				
+		
+		
+		
 		private void DrawMarkers(PositionInfo newPositionInfo)
 		{
 			if (newPositionInfo.PositionType == MarketPosition.Long)
@@ -496,23 +478,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 			CheckEntryDisabled(exitDone);
 			if (IsLongEntry() && !_isLongDisabled)
 			{
-				//EnterLongLimit(Low[0]-1.0);
-				EnterLongLimit(High[0]-(Entry_Pullback_Ticks/4));
-				//EnterLong();
-				_direction = 1;
+				EnterLong();
 			}
 			if (IsShortEntry() && !_isShortDisabled)
 			{
-				EnterShortLimit(Low[0]+(Entry_Pullback_Ticks/4));
-				//EnterShort();
-				_direction = -1;
+				EnterShort();
 			}
 		}
 		
 		private void DrawPnL()
 		{
 			var tagPrefix = _lastPositionInfo.PositionType == MarketPosition.Long ? "ExitLongLabel" : "ExitShortLabel";
-			var pnl = ((_positionInfo.ExitQuantity * _positionInfo.ExitPrice) - (_lastPositionInfo.Quantity * _lastPositionInfo.Price) * _direction);
+			var pnl = _positionInfo.ExitQuantity * _positionInfo.ExitPrice - _lastPositionInfo.Quantity * _lastPositionInfo.Price;
 			var markerText = string.Format("P&L {0}", pnl);
 			var y = 0d;
 			if (_lastPositionInfo.PositionType == MarketPosition.Long)
@@ -526,10 +503,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (pnl < 0)
 			{
 				_totalLossAmount += Math.Abs(pnl);
-			}
-			if (pnl > 0)
-			{
-				_totalProfitAmount += Math.Abs(pnl);
 			}
 		}
 		
@@ -563,7 +536,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		protected override void OnBarUpdate()
 		{
-			if (!(IsFirstTickOfBar || Calculate == Calculate.OnBarClose) || CurrentBar < _barCount+1 )
+			if (!(IsFirstTickOfBar || Calculate == Calculate.OnBarClose) || CurrentBar < TriggerPeriod || CurrentBar < AveragePeriod)
 				return;
 			
 			if (!IsTradingTime())
@@ -586,25 +559,44 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 		#region Properties
 		
-		#region Parameters
+		#region Trend BLT
+			
+		[NinjaScriptProperty]
+        [Display(Name = "TriggerMAType", GroupName = "Trend BLT", Order = 1)]
+        public MAType TriggerMAType
+        {
+            get { return _triggerMAType; }
+            set { _triggerMAType = value; }
+        }
+
+        [NinjaScriptProperty]
+		[Range(1, Int32.MaxValue)]
+        [Display(Name = "TriggerPeriod", GroupName = "Trend BLT", Order = 2)]
+        public int TriggerPeriod
+        {
+            get { return _triggerPeriod; }
+            set { _triggerPeriod = Math.Max(1, value); }
+        }
+
+        /* ------- */
+
+        [NinjaScriptProperty]
+        [Display(Name = "AverageMAType", GroupName = "Trend BLT", Order = 3)]
+        public MAType AverageMAType
+        {
+            get { return _averageMAType; }
+            set { _averageMAType = value; }
+        }
+
+        [NinjaScriptProperty]
+		[Range(1, Int32.MaxValue)]
+        [Display(Name = "AveragePeriod", GroupName = "Trend BLT", Order = 4)]
+        public int AveragePeriod
+        {
+            get { return _averagePeriod; }
+            set { _averagePeriod = Math.Max(1, value); }
+        }
 		
-		[Range(1, int.MaxValue), NinjaScriptProperty]
-		[Display(Name="Range Ticks", Description="The range or renko bar height", Order=1, GroupName="Parameters")]
-		public int Range_Ticks
-		{ get; set; }
-		
-		[Range(1, int.MaxValue), NinjaScriptProperty]
-		[Display(Name="Entry Pullback Ticks", Description="The ticks to enter a pullback limit order", Order=2, GroupName="Parameters")]
-		public int Entry_Pullback_Ticks
-		{ get; set; }
-		
-		[Range(1, int.MaxValue), NinjaScriptProperty]
-		[Display(Name="Bar Count", Description="The number of sequential bars for trigger", Order=3, GroupName="Parameters")]
-		public int Bar_Count
-		{ 
-			get {return _barCount;}
-			set {_barCount = value; }
-		}
 		
 		#endregion
 		
@@ -686,16 +678,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public double No_Trading_Loss_Amount
 		{ get; set; }
 		
-		[NinjaScriptProperty]
-		[Display(Name="Disable Trading By Profit Amount", Description="Disable Trading By Profit Amount", Order = 4, GroupName="Trading")]
-		public bool Disable_Trading_By_Profit_Amount
-		{ get; set; }
-		
-		[NinjaScriptProperty]
-		[Range(0, double.MaxValue)]
-		[Display(Name="Profit Amount", Description="Profit Amount", Order = 5, GroupName="Trading")]
-		public double No_Trading_Profit_Amount
-		{ get; set; }
 		#endregion
 		
 		#region Display

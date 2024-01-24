@@ -32,6 +32,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		int waitBars = 20;
 		double enterPrice;
 		double exitPrice;
+		int barSize = 10;
 
 		
 		protected override void OnStateChange()
@@ -67,10 +68,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 				stochPeriod = 8;
 				
 				
+				
 			}
 			else if (State == State.Configure)
 			{
-				SetStopLoss(CalculationMode.Ticks, stopLoss);
+				//SetStopLoss(CalculationMode.Ticks, stopLoss);
+				SetTrailStop(CalculationMode.Ticks,(barSize*3.0));
 				SetProfitTarget(CalculationMode.Ticks, profitTaker);
 			}
 			else if (State == State.DataLoaded)
@@ -112,7 +115,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			if (exitLong)
 			{
-					ExitLong();
+					//ExitLong();
 			}
 			
 						
