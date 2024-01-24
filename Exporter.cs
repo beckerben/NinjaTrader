@@ -27,15 +27,45 @@ using System.IO;
 namespace NinjaTrader.NinjaScript.Strategies
 {
 	/// <summary>
-	/// Strategy to write data to disk
+	/// Strategy to write data to disk for analysis via ML
 	/// </summary>
 	public class Exporter : Strategy
 	{
+		
+		#region Variables
+		
 		private ParabolicSAR ParabolicSAR1;
 		private StreamWriter sw;
 		private bool priorCloseHigher = false;
 		private int trendSequence = 1;
+		private TimeSpan startTime;
+		private TimeSpan endTime;
+		
+		#endregion // variables
+		
+		#region Private methods
+		
+		/// <summary>
+		/// Determines if it is currently trading time based on the specified start and end times.
+		/// </summary>
+		/// <returns><c>true</c> if it is trading time; otherwise, <c>false</c>.</returns>
+		private bool IsTradingTime()
+		{
+			var result = true;
+			var barTimestamp  = Time[0].Hour * 60 + Time[0].Minute;
+			var startTimestamp = Start_Time.Hour * 60 + Start_Time.Minute;
+			var endTimestamp = End_Time.Hour * 60 + End_Time.Minute;
+			var isNoTradingTime = (barTimestamp < startTimestamp || barTimestamp >= endTimestamp) && Enable_Time;
+			if (isNoTradingTime)
+			{
+				result = false;
+			}
+			return result;
+		}		
 
+		#endregion // Private methods
+		
+		#region Main methods
 		protected override void OnStateChange()
 		{
 			if (State == State.SetDefaults)
@@ -48,7 +78,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				IsExitOnSessionCloseStrategy				= true;
 				ExitOnSessionCloseSeconds					= 30;
 				IsFillLimitOnTouch							= false;
-				MaximumBarsLookBack							= MaximumBarsLookBack.TwoHundredFiftySix;
+				MaximumBarsLookBack							= MaximumBarsLookBack.Infinite;
 				OrderFillResolution							= OrderFillResolution.Standard;
 				Slippage									= 0;
 				StartBehavior								= StartBehavior.WaitUntilFlat;
@@ -61,10 +91,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				// Disable this property for performance gains in Strategy Analyzer optimizations
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= true;
-				
-				//ticks = 15;
-				//barsBack = 10;
-				
+				Enable_Time = false;
+
 			}
 			// Necessary to call in order to clean up resources used by the StreamWriter object
 			else if(State == State.Terminated)
@@ -82,15 +110,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			else if (State == State.DataLoaded)
 			{				
 				sw = File.AppendText(outputFile);  // Open the path for writing
-			}
-		}
-
-		protected override void OnBarUpdate()
-		{
-			
-			if (CurrentBars[0] == 0) 
-			{
-				//sw = File.AppendText(path);  // Open the path for writing
+				//write the header
 				sw.WriteLine("barcount," + 
 					"date," + 
 					"open,"+
@@ -169,10 +189,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"wisemanawesomeoscillator,"+
 					"woodiescci,"+
 					"woodiescci_turbo"
-				); // Append a new line to the file
-				//sw.Close(); // Close the file to allow future calls to access the file again.					
+				); 			
 			}
-			
+		}
+
+		protected override void OnBarUpdate()
+		{
+			if (!IsTradingTime()) return;
+		
 			if (CurrentBars[0] < BarsRequiredToTrade) return;
 			
 			bool closehigher = false;
@@ -271,22 +295,29 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 		}
 		
+		#endregion // Main methods
+
 		#region Properties
 		
-			[Display(Name="Output file", Description="e.g. c:\\temp\\out.csv",Order=1,GroupName="Parameters")]
+			[Display(Name="Output file", Description="e.g. c:\\temp\\out.csv",Order=1,GroupName="Output")]
 			public string outputFile
 			{get; set;}		
+
+			[NinjaScriptProperty]
+			[Display(Name="Enable Time Filter", Description="Enable time filter", Order = 1, GroupName="Filters")]
+			public bool Enable_Time
+			{ get; set; }
 			
-//			[Range(1, int.MaxValue), NinjaScriptProperty]
-//			[Display(Name="Desired Ticks", Description="Desired Ticks", Order=1, GroupName="Parameters")]
-//			public int ticks
-//			{ get; set; }
+			[Gui.PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
+			[Display(Name="Start Time", Description="Start time", Order = 3, GroupName="Filters")]
+			public DateTime Start_Time { get; set; }
 			
-//			[Range(1, int.MaxValue), NinjaScriptProperty]
-//			[Display(Name="Bars Back", Description="Bars to go back to compare high", Order=2, GroupName="Parameters")]
-//			public int barsBack
-//			{ get; set; }
+			[Gui.PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
+			[Display(Name="End Time", Description="End time", Order = 4, GroupName="Filters")]
+			public DateTime End_Time { get; set; }
 			
-		#endregion
+		
+		#endregion // Properties
+				
 	}
 }
