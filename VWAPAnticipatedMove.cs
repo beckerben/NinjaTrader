@@ -108,7 +108,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			if (CurrentBars[0] < (BarsRequiredToTrade))
 				return;
-		
+
+		    if(BarsPeriod.BarsPeriodType != BarsPeriodType.Renko)
+			{
+				Draw.TextFixed(this, "NinjaScriptInfo", "The RenkoStrategy must be ran on a Renko chart.", TextPosition.BottomRight);
+				return;
+			}
+			
+			
 			double cR1 = 0;
 			double cR3 = 0;
 			double cR4 = 0;

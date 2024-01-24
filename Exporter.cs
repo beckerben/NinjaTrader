@@ -26,10 +26,13 @@ using System.IO;
 //This namespace holds Strategies in this folder and is required. Do not change it. 
 namespace NinjaTrader.NinjaScript.Strategies
 {
+	/// <summary>
+	/// Strategy to write data to disk
+	/// </summary>
 	public class Exporter : Strategy
 	{
 		private ParabolicSAR ParabolicSAR1;
-		private StreamWriter sw; // a variable for the StreamWriter that will be used 
+		private StreamWriter sw;
 		private bool priorCloseHigher = false;
 		private int trendSequence = 1;
 
@@ -126,6 +129,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"mfi,"+
 					"momentum,"+
 					"moneyflowoscillator,"+
+				    "nbarsdown,"+
+				    "nbarsup,"+
 					"obv,"+
 					//"orderflowcumulativedelta_deltaopen,"+
 					//"orderflowcumulativedelta_deltaclose,"+
@@ -221,6 +226,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				MFI(14)[0].ToString() + "," +
 				Momentum(14)[0].ToString() + "," +
 				MoneyFlowOscillator(20)[0].ToString() + "," +
+			    NBarsDown(3,true,true,true)[0].ToString() + "," +
+			    NBarsUp(3,true,true,true)[0].ToString()  + "," +
 				OBV()[0].ToString() + "," + 
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaOpen[0].ToString() + "," + 
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaClose[0].ToString() + "," +
