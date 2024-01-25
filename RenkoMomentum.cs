@@ -39,6 +39,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 		bool trendUp = false; 
 		bool trendSwitched = false;
 		private Order entryOrder = null;
+		bool longOk = false;
+		bool shortOk = false;
 		
 		protected override void OnStateChange()
 		{
@@ -64,64 +66,84 @@ namespace NinjaTrader.NinjaScript.Strategies
 				// Disable this property for performance gains in Strategy Analyzer optimizations
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= true;
-				RenkoBarSize = 12;
+				RenkoBarSize = 40;
+				SlippageTick = 3;
 				
 			}
 			else if (State == State.Configure)
 			{
-				SetProfitTarget(CalculationMode.Ticks,(RenkoBarSize*1.5)+2);
-				SetTrailStop(CalculationMode.Ticks,(RenkoBarSize*2)+2);
+				//SetProfitTarget(CalculationMode.Ticks,(RenkoBarSize*2.5));
+				//SetStopLoss(CalculationMode.Ticks,(RenkoBarSize*2)+SlippageTick);
+				SetTrailStop(CalculationMode.Ticks,(RenkoBarSize*2.0)+SlippageTick);
 				RealtimeErrorHandling = RealtimeErrorHandling.IgnoreAllErrors;
-				//SetStopLoss(CalculationMode.Ticks,(RenkoBarSize*1.5)+2);
 			}
+			else if (State == State.DataLoaded)
+			{
+				AddChartIndicator(WoodiesCCI(2, 5, 14, 34, 25, 6, 60, 100, 2));	
+			}			
 		}
 
 		protected override void OnBarUpdate()
 		{
 			//sanity check we are using a renko series
-			if(BarsPeriod.BarsPeriodType != BarsPeriodType.Renko)
-			{
-				Draw.TextFixed(this, "NinjaScriptInfo", "The RenkoStrategy must be ran on a Renko chart.", TextPosition.BottomRight);
-				return;
-			}
+//			if(BarsPeriod.BarsPeriodType != BarsPeriodType.Renko)
+//			{
+//				Draw.TextFixed(this, "NinjaScriptInfo", "The RenkoStrategy must be ran on a Renko chart.", TextPosition.BottomRight);
+//				return;
+//			}
 			
 			//check if we have enough bars to trade
 			if (CurrentBars[0] < (BarsRequiredToTrade))
 				return;
 			
+			int zoneColor = Convert.ToInt32(WoodiesCCI(2, 5, 14, 34, 25, 6, 60, 100, 2).ZoneBars[0]);
+			switch (zoneColor)
+			{
+			    case 0: //negative red
+			        longOk = true;
+			        shortOk = true;
+			        break;
+			    case 1: //positive blue
+			        longOk = true;
+			        shortOk = true;
+			        break;
+			    case 2: //neutral gray
+			        longOk = true;
+			        shortOk = true;
+			        break;
+			    case 3: //last neutral yellow
+			        longOk = true;
+			        shortOk = true;
+			        break;
+			}
+
 			//lets determine if this bar is higher than the prior bar
 			if (Close[0] > Close[1])
 			{
-				if (!trendUp) 	
-					trendSwitched = true;	
-				else
-					trendSwitched = false;
-				trendUp = true;
+			    if (!trendUp) 	
+			        trendSwitched = true;	
+			    else
+			        trendSwitched = false;
+			    trendUp = true;
 			}
 			else
 			{
-				if (trendUp)
-					trendSwitched = true;
-				else
-					trendSwitched = false;
-				trendUp = false;
+			    if (trendUp)
+			        trendSwitched = true;
+			    else
+			        trendSwitched = false;
+			    trendUp = false;
 			}
-			
-			//if no position, enter long only
-			if(Position.MarketPosition == MarketPosition.Flat)
+
+			if (Position.MarketPosition == MarketPosition.Flat)
 			{
-				//if we are trending down, set a stop limit to enter a long based on the high one bar back
-				if (trendUp && trendSwitched)
-					EnterLong();
-				
-				if (!trendUp && trendSwitched)
-					EnterShort();
-
+			    if(trendUp && trendSwitched && longOk)
+			        EnterLong();
+			    if(!trendUp && trendSwitched && shortOk)
+			        EnterShort();
 			}
-
 			
 		}
-		
 
 		#region Properties
 
@@ -131,6 +153,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public int RenkoBarSize
 		{ get; set; }
 
+		[NinjaScriptProperty]
+		[Range(0, int.MaxValue)]
+		[Display(Name="SlippageTick", Description="The added buffer ticks to add to target entry / exit", Order=1, GroupName="Config")]
+		public int SlippageTick
+		{ get; set; }
+		
 		#endregion		
 		
 		

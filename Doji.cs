@@ -58,15 +58,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 				
 				height = 6;
 				pullback = 12;
-				profitTaker = 24;
-//				stopLoss = 50;
+				profitTaker = 12;
+				stopLoss = 8;
 				
 				
 			}
 			else if (State == State.Configure)
 			{
 				SetProfitTarget(CalculationMode.Ticks, profitTaker);
-//				SetStopLoss(CalculationMode.Ticks, stopLoss);
+				SetStopLoss(CalculationMode.Ticks, stopLoss);
 			}
 			else if (State == State.DataLoaded)
 			{
@@ -98,14 +98,28 @@ namespace NinjaTrader.NinjaScript.Strategies
 				
 			if (Position.MarketPosition == MarketPosition.Flat && dojiUp)
 			{
-				EnterLongLimit(High[0] - (pullback / 4));
-				SetStopLoss(CalculationMode.Price,Low[0] - 0.25);
+				if(pullback == 0)
+				{
+					EnterLong();
+				}
+				else
+				{
+					EnterLongLimit(High[0] - (pullback / 4));
+				}
+				//SetStopLoss(CalculationMode.Price,Low[0] - 0.25);
 			}
 		
 			if (Position.MarketPosition == MarketPosition.Flat && dojiDown)
 			{
-				EnterShortLimit(Low[0] + (pullback / 4));
-				SetStopLoss(CalculationMode.Price,High[0] + 0.25);
+				if(pullback == 0)
+				{
+					EnterShort();
+				}
+				else
+				{
+					EnterShortLimit(Low[0] + (pullback / 4));
+				}
+				//SetStopLoss(CalculationMode.Price,High[0] + 0.25);
 			}
 				
 			
@@ -134,11 +148,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 			public int profitTaker
 			{ get; set; }			
 			
-//			[NinjaScriptProperty]
-//			[Range(1, int.MaxValue)]
-//			[Display(Name="Stop Loss", Description="Stop Loss Ticks", Order=10, GroupName="Parameters")]
-//			public int stopLoss
-//			{ get; set; }			
+			
+			[NinjaScriptProperty]
+			[Range(1, int.MaxValue)]
+			[Display(Name="Stop Loss", Description="Stop Loss Ticks", Order=10, GroupName="Parameters")]
+			public int stopLoss
+			{ get; set; }			
 			
 			
 		#endregion

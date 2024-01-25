@@ -20,20 +20,18 @@ using NinjaTrader.NinjaScript;
 using NinjaTrader.Core.FloatingPoint;
 using NinjaTrader.NinjaScript.Indicators;
 using NinjaTrader.NinjaScript.DrawingTools;
-using BltTriggerLines.Common;
 #endregion
 
 //This namespace holds Strategies in this folder and is required. Do not change it. 
 namespace NinjaTrader.NinjaScript.Strategies
 {
-
-	[Gui.CategoryOrder("Trend BLT", 1000100)]
+	[Gui.CategoryOrder("Trend EMA", 1000100)]
 	[Gui.CategoryOrder("Entry&Exit", 1000200)]
 	[Gui.CategoryOrder("Profit&Loss", 1000300)]
 	[Gui.CategoryOrder("Trading", 1000400)]
 	[Gui.CategoryOrder("Display", 1000500)]
 	[Gui.CategoryOrder("ATM", 1000600)]
-	public class BarSequence : Strategy
+	public class KirilRenkoStrategy : Strategy
 	{
 		#region Classes
 		
@@ -81,14 +79,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 		#region Variables
 		
-		//indicator variables
-		private Indicator _nBarsDown;
-		private Indicator _nBarsUp;
-		private Indicator _momentum;
-		private int _barCount = 3;
-		private int _direction = 1;
-				
-		//core variables
+		private Indicator _trendEma;
 		private PositionInfo _positionInfo;
 		private PositionInfo _lastPositionInfo;
 		private double _totalLossAmount;
@@ -108,55 +99,47 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (State == State.SetDefaults)
 			{
-				Description									= @"Strategy which uses the up/down bars";
-				Name										= "BarSequence";
+				Description									= @"Kiril Renko Strategy, John Doe";
+				Name										= "Kiril RS1";
 				Calculate									= Calculate.OnBarClose;
 				EntriesPerDirection							= 1;
 				EntryHandling								= EntryHandling.AllEntries;
 				IsExitOnSessionCloseStrategy				= true;
 				ExitOnSessionCloseSeconds					= 30;
-				IsFillLimitOnTouch							= true;
+				IsFillLimitOnTouch							= false;
 				MaximumBarsLookBack							= MaximumBarsLookBack.TwoHundredFiftySix;
-				OrderFillResolution							= OrderFillResolution.High;
+				OrderFillResolution							= OrderFillResolution.Standard;
 				Slippage									= 0;
 				StartBehavior								= StartBehavior.WaitUntilFlat;
 				TimeInForce									= TimeInForce.Gtc;
 				TraceOrders									= false;
 				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
 				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
-				BarsRequiredToTrade							= _barCount + 2;
+				BarsRequiredToTrade							= 20;
 				// Disable this property for performance gains in Strategy Analyzer optimizations
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= true;
 				
+				TrendEma_Period = 21;
+				TrendEma_PriceType = PriceType.Close;
 				Enable_Long = true;
-				//Bars_Above_Trend_For_Long = 3;
+				Bars_Above_Trend_For_Long = 3;
 				Enable_Short = true;
-				//Bars_Below_Trend_For_Short = 3;
+				Bars_Below_Trend_For_Short = 3;
 				Exit_By_First_Opposite_Bar = true;
 				Enable_Profit_Target = false;
 				Profit_Target_Ticks = 10;
 				Enable_Stop_Loss = false;
-				Stop_Loss_Trailing = false;
 				Stop_Loss_Ticks = 15;
 				Enable_Trading_Time = false;
 				Disable_Trading_By_Loss_Amount = false;
-				Disable_Trading_By_Profit_Amount = false;
 				No_Trading_Loss_Amount = 0d;
-				No_Trading_Profit_Amount = 0d;
 				Atm_Strategy_Template = string.Empty;
-				Range_Ticks = 20;
-				Entry_Pullback_Ticks = 4;
-				
 			}
 			else if (State == State.Configure)
 			{
-				_nBarsUp = NBarsUp(_barCount,true,true,true);
-				_nBarsDown = NBarsDown(_barCount,true,true,true);
-				_momentum = Momentum(HMA(100),1);
-				AddChartIndicator(_nBarsUp);
-				AddChartIndicator(_nBarsDown);
-				AddChartIndicator(_momentum);
+				_trendEma = EMA(GetSMASeries(TrendEma_PriceType), TrendEma_Period);
+				AddChartIndicator(_trendEma);
 				
 				_positionInfo = new PositionInfo();
 				_lastPositionInfo = new PositionInfo();
@@ -171,14 +154,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					}
 					if (Enable_Stop_Loss)
 					{
-						if (Stop_Loss_Trailing)
-						{
-							SetTrailStop(CalculationMode.Ticks, Stop_Loss_Ticks);
-						}
-						else
-						{
-							SetStopLoss(CalculationMode.Ticks, Stop_Loss_Ticks);
-						}
+						SetStopLoss(CalculationMode.Ticks, Stop_Loss_Ticks);
 					}
 				}
 				
@@ -285,19 +261,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (_positionInfo.PositionType != MarketPosition.Flat || !Enable_Long)
 				return false;
 			
-		
-			var result = false;
-
-			//trigger if we are the first bar up flag
-			//if (_nBarsUp[0] == 1 && _nBarsUp[1] == 0 && _momentum[0] > -0.2)
-			if (_nBarsUp[0] == 1 && _nBarsUp[1] == 0 )
-			//trigger if we are a bar sequence up flag
-			//if (_nBarsUp[0] == 1)				
-			//trigger if we are a bar down flag, catching reversal
-			//if (_nBarsDown[0] == 1)
+			if (CurrentBar < Bars_Above_Trend_For_Long)
+				return false;
+			
+			var result = true;
+			for (int i = 0; i < Bars_Above_Trend_For_Long - 1; i++)
 			{
-				result = true;
+				if (!(Close[i] > Close[i + 1] && Close[i] > _trendEma[i] && Close[i + 1] > _trendEma[i + 1]))
+				{
+					result = false;
+					break;
+				}
 			}
+			
+			result &= Close[Bars_Above_Trend_For_Long] < _trendEma[Bars_Above_Trend_For_Long];
 			
 			return result;
 		}
@@ -307,18 +284,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (_positionInfo.PositionType != MarketPosition.Flat || !Enable_Short)
 				return false;
 			
-			var result = false;
+			if (CurrentBar < Bars_Below_Trend_For_Short)
+				return false;
 			
-			//trigger if we are the first bar down flag
-			//if (_nBarsDown[0] == 1 && _nBarsDown[1] == 0 && _momentum[0] < 0.2)
-			if (_nBarsDown[0] == 1 && _nBarsDown[1] == 0)
-			//trigger if we are a down flag
-			//if (_nBarsDown[0] == 1)
-			//trigger if we are a bar up flag, catching reversal
-			//if (_nBarsUp[0] == 1)
+			var result = true;
+			for (int i = 0; i < Bars_Below_Trend_For_Short - 1; i++)
 			{
-				result = true;
+				if (!(Close[i] < Close[i + 1] && Close[i] < _trendEma[i] && Close[i + 1] < _trendEma[i + 1]))
+				{
+					result = false;
+					break;
+				}
 			}
+			
+			result &= Close[Bars_Below_Trend_For_Short] > _trendEma[Bars_Below_Trend_For_Short];
 			
 			return result;
 		}
@@ -394,8 +373,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 				CreateATM(OrderAction.SellShort);
 			}
 			UpdatePositionInfo();
+			if (_positionInfo.PositionType != MarketPosition.Flat)
+			{
+				var k = _positionInfo.PositionType == MarketPosition.Long ? 1 : -1;
+				if (!Enable_Stop_Loss)
+				{
+					var stopPrice = (k > 0 ? Low[0] : High[0]) - k * TickSize * Stop_Loss_Ticks;
+					AtmStrategyChangeStopTarget(0, stopPrice, "STOP1", _atmStrategyId);
+				}
+				if (!Enable_Profit_Target)
+				{
+					var targetPrice = (k < 0 ? Low[0] : High[0]) + k * TickSize * Profit_Target_Ticks;
+					AtmStrategyChangeStopTarget(targetPrice, 0, "TARGET1", _atmStrategyId);
+				}
+			}
 		}
-				
+		
 		private void UpdatePositionInfo()
 		{
 			if (string.IsNullOrEmpty(_atmStrategyId) || !_isAtmStrategyCreated)
@@ -432,8 +425,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				_positionInfo = positionInfo;
 				PrintPositionChanged();
 			}
-		}		
-				
+		}
+		
 		private void DrawMarkers(PositionInfo newPositionInfo)
 		{
 			if (newPositionInfo.PositionType == MarketPosition.Long)
@@ -496,23 +489,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 			CheckEntryDisabled(exitDone);
 			if (IsLongEntry() && !_isLongDisabled)
 			{
-				//EnterLongLimit(Low[0]-1.0);
-				EnterLongLimit(High[0]-(Entry_Pullback_Ticks/4));
-				//EnterLong();
-				_direction = 1;
+				EnterLong();
 			}
 			if (IsShortEntry() && !_isShortDisabled)
 			{
-				EnterShortLimit(Low[0]+(Entry_Pullback_Ticks/4));
-				//EnterShort();
-				_direction = -1;
+				EnterShort();
 			}
 		}
 		
 		private void DrawPnL()
 		{
 			var tagPrefix = _lastPositionInfo.PositionType == MarketPosition.Long ? "ExitLongLabel" : "ExitShortLabel";
-			var pnl = ((_positionInfo.ExitQuantity * _positionInfo.ExitPrice) - (_lastPositionInfo.Quantity * _lastPositionInfo.Price) * _direction);
+			var pnl = _positionInfo.ExitQuantity * _positionInfo.ExitPrice - _lastPositionInfo.Quantity * _lastPositionInfo.Price;
 			var markerText = string.Format("P&L {0}", pnl);
 			var y = 0d;
 			if (_lastPositionInfo.PositionType == MarketPosition.Long)
@@ -526,10 +514,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (pnl < 0)
 			{
 				_totalLossAmount += Math.Abs(pnl);
-			}
-			if (pnl > 0)
-			{
-				_totalProfitAmount += Math.Abs(pnl);
 			}
 		}
 		
@@ -563,7 +547,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		protected override void OnBarUpdate()
 		{
-			if (!(IsFirstTickOfBar || Calculate == Calculate.OnBarClose) || CurrentBar < _barCount+1 )
+			if (!(IsFirstTickOfBar || Calculate == Calculate.OnBarClose) || CurrentBar < TrendEma_Period)
 				return;
 			
 			if (!IsTradingTime())
@@ -586,25 +570,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 		#region Properties
 		
-		#region Parameters
+		#region Trend EMA
 		
-		[Range(1, int.MaxValue), NinjaScriptProperty]
-		[Display(Name="Range Ticks", Description="The range or renko bar height", Order=1, GroupName="Parameters")]
-		public int Range_Ticks
-		{ get; set; }
+		[NinjaScriptProperty]
+		[Range(1, Int32.MaxValue)]
+		[Display(Name="Period", Description="Trend EMA period",  Order = 1, GroupName = "Trend EMA")]
+        public int TrendEma_Period
+        {
+            get; set;
+        }
 		
-		[Range(1, int.MaxValue), NinjaScriptProperty]
-		[Display(Name="Entry Pullback Ticks", Description="The ticks to enter a pullback limit order", Order=2, GroupName="Parameters")]
-		public int Entry_Pullback_Ticks
-		{ get; set; }
-		
-		[Range(1, int.MaxValue), NinjaScriptProperty]
-		[Display(Name="Bar Count", Description="The number of sequential bars for trigger", Order=3, GroupName="Parameters")]
-		public int Bar_Count
-		{ 
-			get {return _barCount;}
-			set {_barCount = value; }
-		}
+		[NinjaScriptProperty]
+		[Display(Name="Price Type", Description="Trend EMA price type",  Order = 2, GroupName = "Trend EMA")]
+        public PriceType TrendEma_PriceType 
+        {
+            get; set;
+        }
 		
 		#endregion
 		
@@ -615,12 +596,26 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public bool Enable_Long
 		{ get; set; }
 		
+		[NinjaScriptProperty]
+		[Range(1, Int32.MaxValue)]
+		[Display(Name="Bars Above Trend For Long Entry", Description="Bars Above Trend For Long Entry",  Order = 2, GroupName = "Entry&Exit")]
+        public int Bars_Above_Trend_For_Long
+        {
+            get; set;
+        }
 		
 		[NinjaScriptProperty]
 		[Display(Name="Enable Short Trades", Description="Enable Short Trades", Order = 3, GroupName="Entry&Exit")]
 		public bool Enable_Short
 		{ get; set; }
 		
+		[NinjaScriptProperty]
+		[Range(1, Int32.MaxValue)]
+		[Display(Name="Bars Below Trend For Long Short", Description="Bars Below Trend For Long Short",  Order = 4, GroupName = "Entry&Exit")]
+        public int Bars_Below_Trend_For_Short
+        {
+            get; set;
+        }
 		
 		[NinjaScriptProperty]
 		[Display(Name="Exit by the First Opposite Bar", Description="Exit by the First Opposite Bar", Order = 5, GroupName="Entry&Exit")]
@@ -653,11 +648,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public int Stop_Loss_Ticks
 		{ get; set; }
 		
-		[NinjaScriptProperty]
-		[Display(Name="Stop Loss Trailing", Description="Make the stop loss a trailing stop loss", Order = 5, GroupName="Profit&Loss")]
-		public bool Stop_Loss_Trailing
-		{ get; set; }
-		
 		#endregion
 		
 		#region Trading
@@ -686,16 +676,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public double No_Trading_Loss_Amount
 		{ get; set; }
 		
-		[NinjaScriptProperty]
-		[Display(Name="Disable Trading By Profit Amount", Description="Disable Trading By Profit Amount", Order = 4, GroupName="Trading")]
-		public bool Disable_Trading_By_Profit_Amount
-		{ get; set; }
-		
-		[NinjaScriptProperty]
-		[Range(0, double.MaxValue)]
-		[Display(Name="Profit Amount", Description="Profit Amount", Order = 5, GroupName="Trading")]
-		public double No_Trading_Profit_Amount
-		{ get; set; }
 		#endregion
 		
 		#region Display

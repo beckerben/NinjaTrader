@@ -26,69 +26,48 @@ using System.IO;
 //This namespace holds Strategies in this folder and is required. Do not change it. 
 namespace NinjaTrader.NinjaScript.Strategies
 {
+	/// <summary>
+	/// Strategy to write data to disk for analysis via ML
+	/// </summary>
 	public class Exporter : Strategy
 	{
+		
+		#region Variables
+		
 		private ParabolicSAR ParabolicSAR1;
-		private StreamWriter sw; // a variable for the StreamWriter that will be used 
+		private StreamWriter sw;
 		private bool priorCloseHigher = false;
 		private int trendSequence = 1;
-
-		protected override void OnStateChange()
+		private TimeSpan startTime;
+		private TimeSpan endTime;
+		
+		#endregion // variables
+		
+		#region Private methods
+		
+		/// <summary>
+		/// Determines if it is currently trading time based on the specified start and end times.
+		/// </summary>
+		/// <returns><c>true</c> if it is trading time; otherwise, <c>false</c>.</returns>
+		private bool IsTradingTime()
 		{
-			if (State == State.SetDefaults)
+			var result = true;
+			var barTimestamp  = Time[0].Hour * 60 + Time[0].Minute;
+			var startTimestamp = Start_Time.Hour * 60 + Start_Time.Minute;
+			var endTimestamp = End_Time.Hour * 60 + End_Time.Minute;
+			var isNoTradingTime = (barTimestamp < startTimestamp || barTimestamp >= endTimestamp) && Enable_Time;
+			if (isNoTradingTime)
 			{
-				Description									= @"Exporter";
-				Name										= "Exporter";
-				Calculate									= Calculate.OnBarClose;
-				EntriesPerDirection							= 1;
-				EntryHandling								= EntryHandling.AllEntries;
-				IsExitOnSessionCloseStrategy				= true;
-				ExitOnSessionCloseSeconds					= 30;
-				IsFillLimitOnTouch							= false;
-				MaximumBarsLookBack							= MaximumBarsLookBack.TwoHundredFiftySix;
-				OrderFillResolution							= OrderFillResolution.Standard;
-				Slippage									= 0;
-				StartBehavior								= StartBehavior.WaitUntilFlat;
-				TimeInForce									= TimeInForce.Gtc;
-				TraceOrders									= false;
-				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
-				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
-				BarsRequiredToTrade							= 20;
-				outputFile = "C:\\temp\\NQ.csv"; 
-				// Disable this property for performance gains in Strategy Analyzer optimizations
-				// See the Help Guide for additional information
-				IsInstantiatedOnEachOptimizationIteration	= true;
-				
-				//ticks = 15;
-				//barsBack = 10;
-				
+				result = false;
 			}
-			// Necessary to call in order to clean up resources used by the StreamWriter object
-			else if(State == State.Terminated)
-			{
-				if (sw != null)
-				{
-					sw.Close();
-					sw.Dispose();
-					sw = null;
-				}
-			}			
-			else if (State == State.Configure)
-			{
-			}
-			else if (State == State.DataLoaded)
-			{				
-				sw = File.AppendText(outputFile);  // Open the path for writing
-			}
-		}
+			return result;
+		}		
 
-		protected override void OnBarUpdate()
+		private void WriteHeader(StreamWriter writer)
 		{
-			
-			if (CurrentBars[0] == 0) 
+			if (writer != null)
 			{
-				//sw = File.AppendText(path);  // Open the path for writing
-				sw.WriteLine("barcount," + 
+				writer.WriteLine("barcount," + 
 					"date," + 
 					"open,"+
 					"high,"+
@@ -100,8 +79,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"adl,"+
 					"adx," +
 					"adxr,"+
-					"aroon_up,"+
-					"aroon_down,"+
 					"aroonoscillator,"+
 					"atr,"+
 					"bop,"+
@@ -122,11 +99,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"macd,"+
 					"macd_avg,"+
 					"macd_diff,"+
-					//"mcclellanoscillator,"+
 					"mfi,"+
 					"momentum,"+
 					"moneyflowoscillator,"+
-					"obv,"+
 					//"orderflowcumulativedelta_deltaopen,"+
 					//"orderflowcumulativedelta_deltaclose,"+
 					//"orderflowcumulativedelta_deltahigh,"+
@@ -149,14 +124,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"stochastics_k,"+
 					"stochasticsfast_d,"+
 					"stochasticsfast_k,"+
-					"sum,"+
 					"trix,"+
 					"trix_signal,"+
 					"tsi,"+
 					"ultimateoscillator,"+
-					"zlema,"+
-					"volumeupdown_upvolume,"+
-					"volumeupdown_downvolume,"+
 					"vortex_viplus,"+
 					"vortex_viminus,"+
 					"vroc,"+
@@ -164,10 +135,95 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"wisemanawesomeoscillator,"+
 					"woodiescci,"+
 					"woodiescci_turbo"
-				); // Append a new line to the file
-				//sw.Close(); // Close the file to allow future calls to access the file again.					
+				); 						
 			}
-			
+		}
+		#endregion // Private methods
+		
+		#region Main methods
+		protected override void OnStateChange()
+		{
+			if (State == State.SetDefaults)
+			{
+				Description									= @"Exporter";
+				Name										= "Exporter";
+				Calculate									= Calculate.OnBarClose;
+				EntriesPerDirection							= 1;
+				EntryHandling								= EntryHandling.AllEntries;
+				IsExitOnSessionCloseStrategy				= true;
+				ExitOnSessionCloseSeconds					= 30;
+				IsFillLimitOnTouch							= false;
+				MaximumBarsLookBack							= MaximumBarsLookBack.Infinite;
+				OrderFillResolution							= OrderFillResolution.Standard;
+				Slippage									= 0;
+				StartBehavior								= StartBehavior.WaitUntilFlat;
+				TimeInForce									= TimeInForce.Gtc;
+				TraceOrders									= false;
+				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
+				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
+				BarsRequiredToTrade							= 20;
+				// Disable this property for performance gains in Strategy Analyzer optimizations
+				// See the Help Guide for additional information
+				IsInstantiatedOnEachOptimizationIteration	= true;
+				Enable_Time = false;
+				outputPath = "C:\\Temp";
+				outputFile = null;
+			}
+			// Necessary to call in order to clean up resources used by the StreamWriter object
+			else if(State == State.Terminated)
+			{
+				if (sw != null)
+				{
+					sw.Close();
+					sw.Dispose();
+					sw = null;
+				}
+			}			
+			else if (State == State.Configure)
+			{
+			}
+			else if (State == State.DataLoaded)
+			{				
+				// Check if outputFile is null or empty
+				if (string.IsNullOrEmpty(outputFile))
+				{
+				    // Create a default file name based on the current date and time
+				    string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+				    outputFile = $"{Instrument.FullName.Replace(" ", "").Replace("-", "")}_{timestamp}.csv";
+				}
+				
+				// Combine the outputPath and outputFile to create the full file path
+				string fullPath = Path.Combine(outputPath, outputFile);				
+				
+				// Check if the file exists
+				if (!File.Exists(fullPath))
+				{
+				    // Create the file and write the header
+				    using (StreamWriter sw = File.CreateText(fullPath))
+				    {
+				        WriteHeader(sw);
+				    }
+				}
+				else
+				{
+				    // Check if the file is empty
+				    if (new FileInfo(fullPath).Length == 0)
+				    {
+				        using (StreamWriter sw = File.AppendText(fullPath))
+				        {
+				            WriteHeader(sw);
+				        }
+				    }
+				}
+				//leave writer open for append
+				sw = File.AppendText(fullPath);
+			}
+		}
+
+		protected override void OnBarUpdate()
+		{
+			if (!IsTradingTime()) return;
+		
 			if (CurrentBars[0] < BarsRequiredToTrade) return;
 			
 			bool closehigher = false;
@@ -183,7 +239,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			priorCloseHigher = closehigher;
 			
-			//sw = File.AppendText(path);  // Open the path for writing
 			sw.WriteLine(CurrentBar.ToString() + "," + Time[0].ToString("yyyy-MM-dd HH:mm:ss") + "," + 
 				Open[0].ToString() + "," +
 				High[0].ToString() + "," + 
@@ -195,8 +250,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 				ADL().AD[0].ToString() + "," + 
 				ADX(14)[0].ToString() + "," + 
 				ADXR(10,14)[0].ToString() + "," + 
-				Aroon(14).Up[0].ToString() + "," + 
-				Aroon(14).Down[0].ToString() + "," + 
 				AroonOscillator(14)[0].ToString()+ "," + 
 				ATR(14)[0].ToString()  + "," +
 				BOP(14)[0].ToString() + "," +
@@ -217,11 +270,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 				MACD(12,26,9)[0].ToString() + "," +
 				MACD(12,26,9).Avg[0].ToString() + "," +
 				MACD(12,26,9).Diff[0].ToString() + "," +
-				//McClellanOscillator(19,30)[0].ToString() + "," +
 				MFI(14)[0].ToString() + "," +
 				Momentum(14)[0].ToString() + "," +
 				MoneyFlowOscillator(20)[0].ToString() + "," +
-				OBV()[0].ToString() + "," + 
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaOpen[0].ToString() + "," + 
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaClose[0].ToString() + "," +
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaHigh[0].ToString() + "," +
@@ -244,14 +295,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Stochastics(7,14,3).K[0].ToString() + "," +
 				StochasticsFast(3,14).D[0].ToString() + "," +
 				StochasticsFast(3,14).K[0].ToString() + "," +
-				SUM(14)[0].ToString() + "," +
 				TRIX(14,3)[0].ToString() + "," +
 				TRIX(14,3).Signal[0].ToString() + "," +
 				TSI(3,14)[0].ToString() + "," +
 				UltimateOscillator(7,14,28)[0].ToString() + "," +
-				ZLEMA(14)[0].ToString() + "," +
-				VolumeUpDown().UpVolume[0].ToString() + "," +
-				VolumeUpDown().DownVolume[0].ToString() + "," +
 				Vortex(14).VIPlus[0].ToString() + "," +
 				Vortex(14).VIMinus[0].ToString() + "," +
 				VROC(14,3)[0].ToString() + "," +
@@ -264,22 +311,41 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 		}
 		
+		#endregion // Main methods
+
 		#region Properties
 		
-			[Display(Name="Output file", Description="e.g. c:\\temp\\out.csv",Order=1,GroupName="Parameters")]
+			[Display(Name="Output path", Description="e.g. c:\\temp",Order=1,GroupName="Output")]
+			public string outputPath
+			{get; set;}				
+		
+			[Display(Name="Output file", Description="e.g. output.csv",Order=2,GroupName="Output")]
 			public string outputFile
 			{get; set;}		
+
+			[NinjaScriptProperty]
+			[Display(Name="Enable Time Filter", Description="Enable time filter", Order = 1, GroupName="Filters")]
+			public bool Enable_Time
+			{ get; set; }
 			
-//			[Range(1, int.MaxValue), NinjaScriptProperty]
-//			[Display(Name="Desired Ticks", Description="Desired Ticks", Order=1, GroupName="Parameters")]
-//			public int ticks
-//			{ get; set; }
+			[Gui.PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
+			[Display(Name="Start Time", Description="Start time", Order = 3, GroupName="Filters")]
+			public DateTime Start_Time { get; set; }
 			
-//			[Range(1, int.MaxValue), NinjaScriptProperty]
-//			[Display(Name="Bars Back", Description="Bars to go back to compare high", Order=2, GroupName="Parameters")]
-//			public int barsBack
-//			{ get; set; }
+			[Gui.PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
+			[Display(Name="End Time", Description="End time", Order = 4, GroupName="Filters")]
+			public DateTime End_Time { get; set; }
 			
-		#endregion
+		
+		#endregion // Properties
+				
 	}
 }
+
+/// <summary>
+/// This region holds all the todo items
+/// </summary>
+#region Todo
+/// - add identified indicators
+/// - add formatting of output
+#endregion // Todo

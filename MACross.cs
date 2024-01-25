@@ -33,7 +33,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 	[Gui.CategoryOrder("Trading", 1000400)]
 	[Gui.CategoryOrder("Display", 1000500)]
 	[Gui.CategoryOrder("ATM", 1000600)]
-	public class BarSequence : Strategy
+	public class MACross : Strategy
 	{
 		#region Classes
 		
@@ -82,11 +82,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 		#region Variables
 		
 		//indicator variables
-		private Indicator _nBarsDown;
-		private Indicator _nBarsUp;
-		private Indicator _momentum;
-		private int _barCount = 3;
-		private int _direction = 1;
+		private Indicator _EMA;
+		private Indicator _D9;
+
 				
 		//core variables
 		private PositionInfo _positionInfo;
@@ -108,8 +106,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (State == State.SetDefaults)
 			{
-				Description									= @"Strategy which uses the up/down bars";
-				Name										= "BarSequence";
+				Description									= @"Strategy which uses strong MA crossovers";
+				Name										= "MACross";
 				Calculate									= Calculate.OnBarClose;
 				EntriesPerDirection							= 1;
 				EntryHandling								= EntryHandling.AllEntries;
@@ -124,7 +122,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				TraceOrders									= false;
 				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
 				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
-				BarsRequiredToTrade							= _barCount + 2;
+				BarsRequiredToTrade							= 20;
 				// Disable this property for performance gains in Strategy Analyzer optimizations
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= true;
@@ -141,22 +139,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Stop_Loss_Ticks = 15;
 				Enable_Trading_Time = false;
 				Disable_Trading_By_Loss_Amount = false;
-				Disable_Trading_By_Profit_Amount = false;
 				No_Trading_Loss_Amount = 0d;
-				No_Trading_Profit_Amount = 0d;
 				Atm_Strategy_Template = string.Empty;
 				Range_Ticks = 20;
-				Entry_Pullback_Ticks = 4;
 				
 			}
 			else if (State == State.Configure)
 			{
-				_nBarsUp = NBarsUp(_barCount,true,true,true);
-				_nBarsDown = NBarsDown(_barCount,true,true,true);
-				_momentum = Momentum(HMA(100),1);
-				AddChartIndicator(_nBarsUp);
-				AddChartIndicator(_nBarsDown);
-				AddChartIndicator(_momentum);
+				_EMA = EMA(14);
+				_D9 = D9ParticleOscillatorNT8(10,0);
+				AddChartIndicator(_D9);
 				
 				_positionInfo = new PositionInfo();
 				_lastPositionInfo = new PositionInfo();
@@ -288,15 +280,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 			var result = false;
 
-			//trigger if we are the first bar up flag
-			//if (_nBarsUp[0] == 1 && _nBarsUp[1] == 0 && _momentum[0] > -0.2)
-			if (_nBarsUp[0] == 1 && _nBarsUp[1] == 0 )
-			//trigger if we are a bar sequence up flag
-			//if (_nBarsUp[0] == 1)				
-			//trigger if we are a bar down flag, catching reversal
-			//if (_nBarsDown[0] == 1)
+			
+			//if ((((Close[0]-Open[0])*4)/Range_Ticks)>=0.9 && Close[0]>_EMA[0] && Open[0]<_EMA[0])						
+			//if (CandlestickPattern(ChartPattern.Doji, 0)[0] == 1 && High[0] == Close[0])
+			double val0 = D9ParticleOscillatorNT8(10,0).PredictTrend[0];
+			double val1 = D9ParticleOscillatorNT8(10,0).PredictTrend[1];
+
+			Print(string.Format("{0} PredictTrend 0,1: {1},{2}",Time[0],val0,val1));
+			if (D9ParticleOscillatorNT8(10,0).PredictTrend[0] > 0 && D9ParticleOscillatorNT8(10,0).PredictTrend[1] < 0)
 			{
 				result = true;
+				Print("Long Entry");
 			}
 			
 			return result;
@@ -309,15 +303,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			var result = false;
 			
-			//trigger if we are the first bar down flag
-			//if (_nBarsDown[0] == 1 && _nBarsDown[1] == 0 && _momentum[0] < 0.2)
-			if (_nBarsDown[0] == 1 && _nBarsDown[1] == 0)
-			//trigger if we are a down flag
-			//if (_nBarsDown[0] == 1)
-			//trigger if we are a bar up flag, catching reversal
-			//if (_nBarsUp[0] == 1)
+			//if((((Open[0]-Close[0])*4)/Range_Ticks)>=0.9 && Close[0]<_EMA[0] && Open[0]>_EMA[0])
+			//if (CandlestickPattern(ChartPattern.Doji, 0)[0] == 1 && Low[0] == Close[0])
+			if (D9ParticleOscillatorNT8(10,0).PredictTrend[0] < 0 && D9ParticleOscillatorNT8(10,0).PredictTrend[1] > 0)
 			{
-				result = true;
+				result=true;
+				Print("Short Entry");
 			}
 			
 			return result;
@@ -496,23 +487,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 			CheckEntryDisabled(exitDone);
 			if (IsLongEntry() && !_isLongDisabled)
 			{
-				//EnterLongLimit(Low[0]-1.0);
-				EnterLongLimit(High[0]-(Entry_Pullback_Ticks/4));
-				//EnterLong();
-				_direction = 1;
+				EnterLong();
 			}
 			if (IsShortEntry() && !_isShortDisabled)
 			{
-				EnterShortLimit(Low[0]+(Entry_Pullback_Ticks/4));
-				//EnterShort();
-				_direction = -1;
+				EnterShort();
 			}
 		}
 		
 		private void DrawPnL()
 		{
 			var tagPrefix = _lastPositionInfo.PositionType == MarketPosition.Long ? "ExitLongLabel" : "ExitShortLabel";
-			var pnl = ((_positionInfo.ExitQuantity * _positionInfo.ExitPrice) - (_lastPositionInfo.Quantity * _lastPositionInfo.Price) * _direction);
+			var pnl = _positionInfo.ExitQuantity * _positionInfo.ExitPrice - _lastPositionInfo.Quantity * _lastPositionInfo.Price;
 			var markerText = string.Format("P&L {0}", pnl);
 			var y = 0d;
 			if (_lastPositionInfo.PositionType == MarketPosition.Long)
@@ -526,10 +512,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (pnl < 0)
 			{
 				_totalLossAmount += Math.Abs(pnl);
-			}
-			if (pnl > 0)
-			{
-				_totalProfitAmount += Math.Abs(pnl);
 			}
 		}
 		
@@ -563,7 +545,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		protected override void OnBarUpdate()
 		{
-			if (!(IsFirstTickOfBar || Calculate == Calculate.OnBarClose) || CurrentBar < _barCount+1 )
+			if (!(IsFirstTickOfBar || Calculate == Calculate.OnBarClose) || CurrentBar < BarsRequiredToTrade )
 				return;
 			
 			if (!IsTradingTime())
@@ -593,19 +575,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public int Range_Ticks
 		{ get; set; }
 		
-		[Range(1, int.MaxValue), NinjaScriptProperty]
-		[Display(Name="Entry Pullback Ticks", Description="The ticks to enter a pullback limit order", Order=2, GroupName="Parameters")]
-		public int Entry_Pullback_Ticks
-		{ get; set; }
-		
-		[Range(1, int.MaxValue), NinjaScriptProperty]
-		[Display(Name="Bar Count", Description="The number of sequential bars for trigger", Order=3, GroupName="Parameters")]
-		public int Bar_Count
-		{ 
-			get {return _barCount;}
-			set {_barCount = value; }
-		}
-		
+
 		#endregion
 		
 		#region Entry&Exit
@@ -686,16 +656,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public double No_Trading_Loss_Amount
 		{ get; set; }
 		
-		[NinjaScriptProperty]
-		[Display(Name="Disable Trading By Profit Amount", Description="Disable Trading By Profit Amount", Order = 4, GroupName="Trading")]
-		public bool Disable_Trading_By_Profit_Amount
-		{ get; set; }
-		
-		[NinjaScriptProperty]
-		[Range(0, double.MaxValue)]
-		[Display(Name="Profit Amount", Description="Profit Amount", Order = 5, GroupName="Trading")]
-		public double No_Trading_Profit_Amount
-		{ get; set; }
 		#endregion
 		
 		#region Display
