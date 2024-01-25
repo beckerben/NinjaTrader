@@ -75,6 +75,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"close,"+
 					"volume,"+
 					"higherclose,"+
+					"reversal,"+
 				    "trendsequence," + 
 					"adl,"+
 					"adx," +
@@ -232,8 +233,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 			else 
 				closehigher = false;
 			
+			bool reversal = false;
 			if (priorCloseHigher != closehigher)
+			{
 			 	trendSequence = 1;
+				reversal = true;
+			}
 			else
 				trendSequence++;
 			
@@ -246,6 +251,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Close[0].ToString() + "," + 
 				Volume[0].ToString() + "," +
 				closehigher.ToString() + "," +
+				reversal.ToString() + "," +
 				trendSequence.ToString() + "," +
 				ADL().AD[0].ToString() + "," + 
 				ADX(14)[0].ToString() + "," + 
