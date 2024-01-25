@@ -123,6 +123,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"adl,"+
 					"adx," +
 					"adxr,"+
+					"aroon_up,"+
+					"aroon_down,"+
 					"aroonoscillator,"+
 					"atr,"+
 					"bop,"+
@@ -143,9 +145,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"macd,"+
 					"macd_avg,"+
 					"macd_diff,"+
+					//"mcclellanoscillator,"+
 					"mfi,"+
 					"momentum,"+
 					"moneyflowoscillator,"+
+				    "nbarsdown,"+
+				    "nbarsup,"+
+					"obv,"+
 					//"orderflowcumulativedelta_deltaopen,"+
 					//"orderflowcumulativedelta_deltaclose,"+
 					//"orderflowcumulativedelta_deltahigh,"+
@@ -168,10 +174,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"stochastics_k,"+
 					"stochasticsfast_d,"+
 					"stochasticsfast_k,"+
+					"sum,"+
 					"trix,"+
 					"trix_signal,"+
 					"tsi,"+
 					"ultimateoscillator,"+
+					"zlema,"+
+					"volumeupdown_upvolume,"+
+					"volumeupdown_downvolume,"+
 					"vortex_viplus,"+
 					"vortex_viminus,"+
 					"vroc,"+
@@ -214,6 +224,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				ADL().AD[0].ToString() + "," + 
 				ADX(14)[0].ToString() + "," + 
 				ADXR(10,14)[0].ToString() + "," + 
+				Aroon(14).Up[0].ToString() + "," + 
+				Aroon(14).Down[0].ToString() + "," + 
 				AroonOscillator(14)[0].ToString()+ "," + 
 				ATR(14)[0].ToString()  + "," +
 				BOP(14)[0].ToString() + "," +
@@ -234,9 +246,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 				MACD(12,26,9)[0].ToString() + "," +
 				MACD(12,26,9).Avg[0].ToString() + "," +
 				MACD(12,26,9).Diff[0].ToString() + "," +
+				//McClellanOscillator(19,30)[0].ToString() + "," +
 				MFI(14)[0].ToString() + "," +
 				Momentum(14)[0].ToString() + "," +
 				MoneyFlowOscillator(20)[0].ToString() + "," +
+			    NBarsDown(3,true,true,true)[0].ToString() + "," +
+			    NBarsUp(3,true,true,true)[0].ToString()  + "," +
+				OBV()[0].ToString() + "," + 
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaOpen[0].ToString() + "," + 
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaClose[0].ToString() + "," +
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaHigh[0].ToString() + "," +
@@ -259,10 +275,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Stochastics(7,14,3).K[0].ToString() + "," +
 				StochasticsFast(3,14).D[0].ToString() + "," +
 				StochasticsFast(3,14).K[0].ToString() + "," +
+				SUM(14)[0].ToString() + "," +
 				TRIX(14,3)[0].ToString() + "," +
 				TRIX(14,3).Signal[0].ToString() + "," +
 				TSI(3,14)[0].ToString() + "," +
 				UltimateOscillator(7,14,28)[0].ToString() + "," +
+				ZLEMA(14)[0].ToString() + "," +
+				VolumeUpDown().UpVolume[0].ToString() + "," +
+				VolumeUpDown().DownVolume[0].ToString() + "," +
 				Vortex(14).VIPlus[0].ToString() + "," +
 				Vortex(14).VIMinus[0].ToString() + "," +
 				VROC(14,3)[0].ToString() + "," +
@@ -301,11 +321,3 @@ namespace NinjaTrader.NinjaScript.Strategies
 				
 	}
 }
-
-/// <summary>
-/// This region holds all the todo items
-/// </summary>
-#region Todo
-/// - add identified indicators
-/// - add formatting of output
-#endregion // Todo
