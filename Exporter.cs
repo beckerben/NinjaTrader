@@ -63,6 +63,81 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return result;
 		}		
 
+		private void WriteHeader(StreamWriter writer)
+		{
+			if (writer != null)
+			{
+				writer.WriteLine("barcount," + 
+					"date," + 
+					"open,"+
+					"high,"+
+					"low,"+
+					"close,"+
+					"volume,"+
+					"higherclose,"+
+				    "trendsequence," + 
+					"adl,"+
+					"adx," +
+					"adxr,"+
+					"aroonoscillator,"+
+					"atr,"+
+					"bop,"+
+					"cci,"+
+					"chaikinmoneyflow,"+
+					"chaikinoscillator,"+
+					"chaikinvolatility,"+
+					"choppinessindex,"+
+					"cmo,"+
+					"disparityindex,"+
+					"dm_diplus,"+
+					"dm_diminus,"+
+					"dmi,"+
+					"doublestochastics_k,"+
+					"easeofmovement,"+
+					"fisherstransform,"+
+					"fosc,"+
+					"macd,"+
+					"macd_avg,"+
+					"macd_diff,"+
+					"mfi,"+
+					"momentum,"+
+					"moneyflowoscillator,"+
+					//"orderflowcumulativedelta_deltaopen,"+
+					//"orderflowcumulativedelta_deltaclose,"+
+					//"orderflowcumulativedelta_deltahigh,"+
+					//"orderflowcumulativedelta_deltalow,"+
+					"pfe,"+
+					"ppo,"+
+					"priceoscillator,"+
+					"psychologicalline,"+
+					"rsquared,"+
+					"relativevigorindex,"+
+					"rind,"+
+					"roc,"+
+					"rsi,"+
+					"rsi_avg,"+
+					"rss,"+
+					"rvi,"+
+					"stddev,"+
+					"stochrsi,"+
+					"stochastics_d,"+
+					"stochastics_k,"+
+					"stochasticsfast_d,"+
+					"stochasticsfast_k,"+
+					"trix,"+
+					"trix_signal,"+
+					"tsi,"+
+					"ultimateoscillator,"+
+					"vortex_viplus,"+
+					"vortex_viminus,"+
+					"vroc,"+
+					"williamsr,"+
+					"wisemanawesomeoscillator,"+
+					"woodiescci,"+
+					"woodiescci_turbo"
+				); 						
+			}
+		}
 		#endregion // Private methods
 		
 		#region Main methods
@@ -87,12 +162,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
 				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
 				BarsRequiredToTrade							= 20;
-				outputFile = "C:\\temp\\NQ.csv"; 
 				// Disable this property for performance gains in Strategy Analyzer optimizations
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= true;
 				Enable_Time = false;
-
+				outputPath = "C:\\Temp";
+				outputFile = null;
 			}
 			// Necessary to call in order to clean up resources used by the StreamWriter object
 			else if(State == State.Terminated)
@@ -109,87 +184,39 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			else if (State == State.DataLoaded)
 			{				
-				sw = File.AppendText(outputFile);  // Open the path for writing
-				//write the header
-				sw.WriteLine("barcount," + 
-					"date," + 
-					"open,"+
-					"high,"+
-					"low,"+
-					"close,"+
-					"volume,"+
-					"higherclose,"+
-				    "trendsequence," + 
-					"adl,"+
-					"adx," +
-					"adxr,"+
-					"aroon_up,"+
-					"aroon_down,"+
-					"aroonoscillator,"+
-					"atr,"+
-					"bop,"+
-					"cci,"+
-					"chaikinmoneyflow,"+
-					"chaikinoscillator,"+
-					"chaikinvolatility,"+
-					"choppinessindex,"+
-					"cmo,"+
-					"disparityindex,"+
-					"dm_diplus,"+
-					"dm_diminus,"+
-					"dmi,"+
-					"doublestochastics_k,"+
-					"easeofmovement,"+
-					"fisherstransform,"+
-					"fosc,"+
-					"macd,"+
-					"macd_avg,"+
-					"macd_diff,"+
-					//"mcclellanoscillator,"+
-					"mfi,"+
-					"momentum,"+
-					"moneyflowoscillator,"+
-				    "nbarsdown,"+
-				    "nbarsup,"+
-					"obv,"+
-					//"orderflowcumulativedelta_deltaopen,"+
-					//"orderflowcumulativedelta_deltaclose,"+
-					//"orderflowcumulativedelta_deltahigh,"+
-					//"orderflowcumulativedelta_deltalow,"+
-					"pfe,"+
-					"ppo,"+
-					"priceoscillator,"+
-					"psychologicalline,"+
-					"rsquared,"+
-					"relativevigorindex,"+
-					"rind,"+
-					"roc,"+
-					"rsi,"+
-					"rsi_avg,"+
-					"rss,"+
-					"rvi,"+
-					"stddev,"+
-					"stochrsi,"+
-					"stochastics_d,"+
-					"stochastics_k,"+
-					"stochasticsfast_d,"+
-					"stochasticsfast_k,"+
-					"sum,"+
-					"trix,"+
-					"trix_signal,"+
-					"tsi,"+
-					"ultimateoscillator,"+
-					"zlema,"+
-					"volumeupdown_upvolume,"+
-					"volumeupdown_downvolume,"+
-					"vortex_viplus,"+
-					"vortex_viminus,"+
-					"vroc,"+
-					"williamsr,"+
-					"wisemanawesomeoscillator,"+
-					"woodiescci,"+
-					"woodiescci_turbo"
-				); 			
+				// Check if outputFile is null or empty
+				if (string.IsNullOrEmpty(outputFile))
+				{
+				    // Create a default file name based on the current date and time
+				    string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+				    outputFile = $"{Instrument.FullName.Replace(" ", "").Replace("-", "")}_{timestamp}.csv";
+				}
+				
+				// Combine the outputPath and outputFile to create the full file path
+				string fullPath = Path.Combine(outputPath, outputFile);				
+				
+				// Check if the file exists
+				if (!File.Exists(fullPath))
+				{
+				    // Create the file and write the header
+				    using (StreamWriter sw = File.CreateText(fullPath))
+				    {
+				        WriteHeader(sw);
+				    }
+				}
+				else
+				{
+				    // Check if the file is empty
+				    if (new FileInfo(fullPath).Length == 0)
+				    {
+				        using (StreamWriter sw = File.AppendText(fullPath))
+				        {
+				            WriteHeader(sw);
+				        }
+				    }
+				}
+				//leave writer open for append
+				sw = File.AppendText(fullPath);
 			}
 		}
 
@@ -212,7 +239,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			priorCloseHigher = closehigher;
 			
-			//sw = File.AppendText(path);  // Open the path for writing
 			sw.WriteLine(CurrentBar.ToString() + "," + Time[0].ToString("yyyy-MM-dd HH:mm:ss") + "," + 
 				Open[0].ToString() + "," +
 				High[0].ToString() + "," + 
@@ -224,8 +250,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 				ADL().AD[0].ToString() + "," + 
 				ADX(14)[0].ToString() + "," + 
 				ADXR(10,14)[0].ToString() + "," + 
-				Aroon(14).Up[0].ToString() + "," + 
-				Aroon(14).Down[0].ToString() + "," + 
 				AroonOscillator(14)[0].ToString()+ "," + 
 				ATR(14)[0].ToString()  + "," +
 				BOP(14)[0].ToString() + "," +
@@ -246,13 +270,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 				MACD(12,26,9)[0].ToString() + "," +
 				MACD(12,26,9).Avg[0].ToString() + "," +
 				MACD(12,26,9).Diff[0].ToString() + "," +
-				//McClellanOscillator(19,30)[0].ToString() + "," +
 				MFI(14)[0].ToString() + "," +
 				Momentum(14)[0].ToString() + "," +
 				MoneyFlowOscillator(20)[0].ToString() + "," +
-			    NBarsDown(3,true,true,true)[0].ToString() + "," +
-			    NBarsUp(3,true,true,true)[0].ToString()  + "," +
-				OBV()[0].ToString() + "," + 
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaOpen[0].ToString() + "," + 
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaClose[0].ToString() + "," +
 				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaHigh[0].ToString() + "," +
@@ -275,14 +295,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Stochastics(7,14,3).K[0].ToString() + "," +
 				StochasticsFast(3,14).D[0].ToString() + "," +
 				StochasticsFast(3,14).K[0].ToString() + "," +
-				SUM(14)[0].ToString() + "," +
 				TRIX(14,3)[0].ToString() + "," +
 				TRIX(14,3).Signal[0].ToString() + "," +
 				TSI(3,14)[0].ToString() + "," +
 				UltimateOscillator(7,14,28)[0].ToString() + "," +
-				ZLEMA(14)[0].ToString() + "," +
-				VolumeUpDown().UpVolume[0].ToString() + "," +
-				VolumeUpDown().DownVolume[0].ToString() + "," +
 				Vortex(14).VIPlus[0].ToString() + "," +
 				Vortex(14).VIMinus[0].ToString() + "," +
 				VROC(14,3)[0].ToString() + "," +
@@ -299,7 +315,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		#region Properties
 		
-			[Display(Name="Output file", Description="e.g. c:\\temp\\out.csv",Order=1,GroupName="Output")]
+			[Display(Name="Output path", Description="e.g. c:\\temp",Order=1,GroupName="Output")]
+			public string outputPath
+			{get; set;}				
+		
+			[Display(Name="Output file", Description="e.g. output.csv",Order=2,GroupName="Output")]
 			public string outputFile
 			{get; set;}		
 
@@ -321,3 +341,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 				
 	}
 }
+
+/// <summary>
+/// This region holds all the todo items
+/// </summary>
+#region Todo
+/// - add identified indicators
+/// - add formatting of output
+#endregion // Todo
