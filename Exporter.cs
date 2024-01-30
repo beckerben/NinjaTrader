@@ -109,6 +109,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"dm_diplus,"+
 					"dm_diminus,"+
 					"dmi,"+
+					"dmindex,"+
 					"donchian_lower,"+
 					"donchian_mean,"+
 					"donchian_upper,"+
@@ -317,16 +318,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 				reversal.ToString() + "," +
 				trendSequence.ToString() + "," +
 				ADL().AD[0].ToString() + "," + 
-				ADX(14)[0].ToString() + "," + 
-				ADXR(10,14)[0].ToString() + "," + 
+				Math.Round(ADX(14)[0],0).ToString() + "," + 
+				Math.Round(ADXR(10,14)[0],0).ToString() + "," + 
 				CalculatePricePCT(Close[0],APZ(2,20).Lower[0],3) + "," + 
 				CalculatePricePCT(Close[0],APZ(2,20).Upper[0],3) + "," + 
-				AroonOscillator(14)[0].ToString()+ "," + 
-				ATR(14)[0].ToString()  + "," +
+				Math.Round(AroonOscillator(14)[0],0).ToString()+ "," + 
+				Math.Round(ATR(14)[0],1).ToString()  + "," +
 				CalculatePricePCT(Close[0],Bollinger(2,14).Lower[0],3) + "," +
 				CalculatePricePCT(Close[0],Bollinger(2,14)[0],3) + "," +
 				CalculatePricePCT(Close[0],Bollinger(2,14).Upper[0],3) + "," +
-				BOP(14)[0].ToString() + "," +
+				Math.Round(BOP(14)[0],3).ToString() + "," +
 				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R1[0],3) + "," +
 				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R2[0],3) + "," +
 				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R3[0],3) + "," +
@@ -335,24 +336,25 @@ namespace NinjaTrader.NinjaScript.Strategies
 				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S2[0],3) + "," +
 				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S3[0],3) + "," +
 				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S4[0],3) + "," +			
-				CCI(14)[0].ToString()  + "," +
-				ChaikinMoneyFlow(21)[0].ToString()  + "," +
-				ChaikinOscillator(3,10)[0].ToString()  + "," +
-				ChaikinVolatility(10,10)[0].ToString()  + "," +
-				ChoppinessIndex(14)[0].ToString()  + "," +
-				CMO(14)[0].ToString()+ "," +
+				Math.Round(CCI(14)[0],0).ToString()  + "," +
+				Math.Round(ChaikinMoneyFlow(21)[0],0).ToString()  + "," +
+				Math.Round(ChaikinOscillator(3,10)[0],0).ToString()  + "," +
+				Math.Round(ChaikinVolatility(10,10)[0],0).ToString()  + "," +
+				Math.Round(ChoppinessIndex(14)[0],0).ToString()  + "," +
+				Math.Round(CMO(14)[0],0).ToString()+ "," +
 				CalculatePricePCT(Close[0],CurrentDayOHL().CurrentOpen[0],3)+ "," +
 				CalculatePricePCT(Close[0],CurrentDayOHL().CurrentLow[0],3)+ "," +
 				CalculatePricePCT(Close[0],CurrentDayOHL().CurrentHigh[0],3)+ "," +
-				DisparityIndex(25)[0].ToString() + "," +
-				DM(14).DiPlus[0].ToString() + "," +
-				DM(14).DiMinus[0].ToString() + "," +
-				DMI(14)[0].ToString() + "," +
+				Math.Round(DisparityIndex(25)[0],3).ToString() + "," +
+				Math.Round(DM(14).DiPlus[0],0).ToString() + "," +
+				Math.Round(DM(14).DiMinus[0],0).ToString() + "," +
+				Math.Round(DMI(14)[0],0).ToString() + "," +
+				Math.Round(DMIndex(3)[0],0).ToString() + "," +
 				CalculatePricePCT(Close[0],DonchianChannel(14).Lower[0],3) + "," +
 				CalculatePricePCT(Close[0],DonchianChannel(14)[0],3) + "," +
 				CalculatePricePCT(Close[0],DonchianChannel(14).Upper[0],3) + "," +			
-				DoubleStochastics(10).K[0].ToString() + "," +
-				EaseOfMovement(10,1000)[0].ToString() + "," + 
+				Math.Round(DoubleStochastics(10).K[0],0).ToString() + "," +
+				Math.Round(EaseOfMovement(10,1000)[0],0).ToString() + "," + 
 				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).Pp[0],3) + "," +	
 				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R1[0],3) + "," +
 				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R2[0],3) + "," +
@@ -360,8 +362,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S1[0],3) + "," +
 				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S2[0],3) + "," +
 				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S3[0],3) + "," +
-				FisherTransform(10)[0].ToString() + "," + 
-				FOSC(14)[0].ToString() + "," +
+				Math.Round(FisherTransform(10)[0],1).ToString() + "," + 
+				Math.Round(FOSC(14)[0],2).ToString() + "," +
 				CalculatePricePCT(Close[0],KAMA(2,10,30)[0],3) + "," +
 				CalculatePricePCT(Close[0],KeltnerChannel(1.5,10).Lower[0],3) + "," +
 				CalculatePricePCT(Close[0],KeltnerChannel(1.5,10)[0],3) + "," +
@@ -369,14 +371,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 				CalculatePricePCT(Close[0],LinReg(14)[0],3) + "," +
 				CalculatePricePCT(Close[0],LinRegIntercept(14)[0],3) + "," +
 				Math.Round(LinRegSlope(14)[0],1).ToString() + "," +
-				MACD(12,26,9)[0].ToString() + "," +
-				MACD(12,26,9).Avg[0].ToString() + "," +
-				MACD(12,26,9).Diff[0].ToString() + "," +
+				Math.Round(MACD(12,26,9)[0],1).ToString() + "," +
+				Math.Round(MACD(12,26,9).Avg[0],1).ToString() + "," +
+				Math.Round(MACD(12,26,9).Diff[0],1).ToString() + "," +
 				CalculatePricePCT(Close[0],MAMA(0.5,0.05).Default[0],3) + "," +
 				CalculatePricePCT(Close[0],MAMA(0.5,0.05).Fama[0],3) + "," +
-				MFI(14)[0].ToString() + "," +
-				Momentum(14)[0].ToString() + "," +
-				MoneyFlowOscillator(20)[0].ToString() + "," +
+				Math.Round(MFI(14)[0],0).ToString() + "," +
+				Math.Round(Momentum(14)[0],0).ToString() + "," +
+				Math.Round(MoneyFlowOscillator(20)[0],2).ToString() + "," +
 				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaOpen[0].ToString() + "," + 
 				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaClose[0].ToString() + "," +
 				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaHigh[0].ToString() + "," +
@@ -389,38 +391,38 @@ namespace NinjaTrader.NinjaScript.Strategies
 				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev3Lower[0],3) + "," +
 				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev3Upper[0],3) + "," +
 				CalculatePricePCT(Close[0],ParabolicSAR(0.02,0.2,0.02)[0],3) + "," +
-				PFE(14,10)[0].ToString() + "," +
-				PPO(12,26,9).Smoothed[0].ToString() + "," +
-				PriceOscillator(12,26,9)[0].ToString() + "," +
+				Math.Round(PFE(14,10)[0],2).ToString() + "," +
+				Math.Round(PPO(12,26,9).Smoothed[0],3).ToString() + "," +
+				Math.Round(PriceOscillator(12,26,9)[0],1).ToString() + "," +
 				PsychologicalLine(10)[0].ToString() + "," +
-				RSquared(8)[0].ToString() + "," +
-				RelativeVigorIndex(10)[0].ToString() + "," +
-				RIND(3,10)[0].ToString() + "," +
-				ROC(14)[0].ToString() + "," +
-				RSI(14,3)[0].ToString() + "," +
-				RSI(14,3).Avg[0].ToString() + "," +
-				RSS(10,40,5)[0].ToString() + "," +
-				RVI(14)[0].ToString() + "," +
-				StdDev(14)[0].ToString() + "," +
-				StochRSI(14)[0].ToString() + "," +
-				Stochastics(7,14,3).D[0].ToString() + "," +
-				Stochastics(7,14,3).K[0].ToString() + "," +
-				StochasticsFast(3,14).D[0].ToString() + "," +
-				StochasticsFast(3,14).K[0].ToString() + "," +
-				TRIX(14,3)[0].ToString() + "," +
-				TRIX(14,3).Signal[0].ToString() + "," +
+				Math.Round(RSquared(8)[0],2).ToString() + "," +
+				Math.Round(RelativeVigorIndex(10)[0],2).ToString() + "," +
+				Math.Round(RIND(3,10)[0],0).ToString() + "," +
+				Math.Round(ROC(14)[0],2).ToString() + "," +
+				Math.Round(RSI(14,3)[0],0).ToString() + "," +
+				Math.Round(RSI(14,3).Avg[0],0).ToString() + "," +
+				Math.Round(RSS(10,40,5)[0],0).ToString() + "," +
+				Math.Round(RVI(14)[0],0).ToString() + "," +
+				Math.Round(StdDev(14)[0],1).ToString() + "," +
+				Math.Round(StochRSI(14)[0],2).ToString() + "," +
+				Math.Round(Stochastics(7,14,3).D[0],0).ToString() + "," +
+				Math.Round(Stochastics(7,14,3).K[0],0).ToString() + "," +
+				Math.Round(StochasticsFast(3,14).D[0],0).ToString() + "," +
+				Math.Round(StochasticsFast(3,14).K[0],0).ToString() + "," +
+				Math.Round(TRIX(14,3)[0],4).ToString() + "," +
+				Math.Round(TRIX(14,3).Signal[0],4).ToString() + "," +
 				CalculatePricePCT(Close[0],TSF(3,14)[0],3) + "," +
-				TSI(3,14)[0].ToString() + "," +
-				UltimateOscillator(7,14,28)[0].ToString() + "," +
-				Vortex(14).VIPlus[0].ToString() + "," +
-				Vortex(14).VIMinus[0].ToString() + "," +
+				Math.Round(TSI(3,14)[0],0).ToString() + "," +
+				Math.Round(UltimateOscillator(7,14,28)[0],0).ToString() + "," +
+				Math.Round(Vortex(14).VIPlus[0],1).ToString() + "," +
+				Math.Round(Vortex(14).VIMinus[0],1).ToString() + "," +
 				Math.Round(VOLMA(14)[0],0).ToString() + "," +
 				Math.Round(VolumeOscillator(12,26)[0],0).ToString() + "," +
-				VROC(14,3)[0].ToString() + "," +
-				WilliamsR(14)[0].ToString() + "," +
-				WisemanAwesomeOscillator()[0].ToString() + "," +
-				WoodiesCCI(2,5,14,34,25,6,60,100,2)[0].ToString() + "," +
-				WoodiesCCI(2,5,14,34,25,6,60,100,2).Turbo[0].ToString() + "," +
+				Math.Round(VROC(14,3)[0],0).ToString() + "," +
+				Math.Round(WilliamsR(14)[0],0).ToString() + "," +
+				Math.Round(WisemanAwesomeOscillator()[0],1).ToString() + "," +
+				Math.Round(WoodiesCCI(2,5,14,34,25,6,60,100,2)[0],0).ToString() + "," +
+				Math.Round(WoodiesCCI(2,5,14,34,25,6,60,100,2).Turbo[0],0).ToString() + "," +
 				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).PP[0],3) + "," +
 				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).R1[0],3) + "," +
 				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).R2[0],3) + "," +
