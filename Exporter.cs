@@ -80,33 +80,76 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"adl,"+
 					"adx," +
 					"adxr,"+
+					"apz_lower,"+
+					"apz_upper,"+
 					"aroonoscillator,"+
 					"atr,"+
+					"bollinger_lower,"+
+					"bollinger_middle,"+
+					"bollinger_upper,"+
 					"bop,"+
+					"camarilla_r1,"+
+					"camarilla_r2,"+
+					"camarilla_r3,"+
+					"camarilla_r4,"+
+					"camarilla_s1,"+
+					"camarilla_s2,"+
+					"camarilla_s3,"+
+					"camarilla_s4,"+
 					"cci,"+
 					"chaikinmoneyflow,"+
 					"chaikinoscillator,"+
 					"chaikinvolatility,"+
 					"choppinessindex,"+
 					"cmo,"+
+					"currentday_open,"+
+					"currentday_low,"+
+					"currentday_high,"+				
 					"disparityindex,"+
 					"dm_diplus,"+
 					"dm_diminus,"+
 					"dmi,"+
+					"donchian_lower,"+
+					"donchian_mean,"+
+					"donchian_upper,"+
 					"doublestochastics_k,"+
 					"easeofmovement,"+
+					"fibonacci_pp,"+
+					"fibonacci_r1,"+
+					"fibonacci_r2,"+
+					"fibonacci_r3,"+
+					"fibonacci_s1,"+
+					"fibonacci_s2,"+
+					"fibonacci_s3,"+
 					"fisherstransform,"+
 					"fosc,"+
+					"kama,"+
+					"keltner_lower,"+
+					"keltner_mean,"+
+					"keltner_upper,"+
+					"linreg,"+
+					"linregintercept,"+
+					"linregslope,"+
 					"macd,"+
 					"macd_avg,"+
 					"macd_diff,"+
+					"mama_default,"+
+					"mama_kama,"+
 					"mfi,"+
 					"momentum,"+
 					"moneyflowoscillator,"+
-					//"orderflowcumulativedelta_deltaopen,"+
-					//"orderflowcumulativedelta_deltaclose,"+
-					//"orderflowcumulativedelta_deltahigh,"+
-					//"orderflowcumulativedelta_deltalow,"+
+					"orderflowcumulativedelta_deltaopen,"+
+					"orderflowcumulativedelta_deltaclose,"+
+					"orderflowcumulativedelta_deltahigh,"+
+					"orderflowcumulativedelta_deltalow,"+
+					"orderflowvwap_vwap,"+
+					"orderflowvwap_s1_lower,"+
+					"orderflowvwap_s1_higher,"+
+					"orderflowvwap_s2_lower,"+
+					"orderflowvwap_s2_higher,"+
+					"orderflowvwap_s3_lower,"+
+					"orderflowvwap_s3_higher,"+
+					"parabolic_sar,"+
 					"pfe,"+
 					"ppo,"+
 					"priceoscillator,"+
@@ -127,18 +170,38 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"stochasticsfast_k,"+
 					"trix,"+
 					"trix_signal,"+
+					"tsf,"+
 					"tsi,"+
 					"ultimateoscillator,"+
 					"vortex_viplus,"+
 					"vortex_viminus,"+
+					"volma,"+
+					"volume_oscillator,"+
 					"vroc,"+
 					"williamsr,"+
 					"wisemanawesomeoscillator,"+
 					"woodiescci,"+
-					"woodiescci_turbo"
+					"woodiescci_turbo,"+
+					"woodiespivot_pp,"+
+					"woodiespivot_r1,"+
+					"woodiespivot_r2,"+
+					"woodiespivot_s1,"+
+					"woodiespivot_s2"
 				); 						
 			}
 		}
+		
+	    public static double CalculatePricePCT(double basePrice, double indPrice, int intPrecision)
+	    {
+	        if (basePrice == 0)
+	        {
+	            throw new ArgumentException("basePrice cannot be zero.");
+	        }
+	        double difference = indPrice - basePrice;
+	        double percentageDifference = (difference / basePrice) * 100;
+	        return Math.Round(percentageDifference, intPrecision);
+	    }
+		
 		#endregion // Private methods
 		
 		#region Main methods
@@ -155,7 +218,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				ExitOnSessionCloseSeconds					= 30;
 				IsFillLimitOnTouch							= false;
 				MaximumBarsLookBack							= MaximumBarsLookBack.Infinite;
-				OrderFillResolution							= OrderFillResolution.Standard;
+				OrderFillResolution							= OrderFillResolution.High;
 				Slippage									= 0;
 				StartBehavior								= StartBehavior.WaitUntilFlat;
 				TimeInForce									= TimeInForce.Gtc;
@@ -256,33 +319,76 @@ namespace NinjaTrader.NinjaScript.Strategies
 				ADL().AD[0].ToString() + "," + 
 				ADX(14)[0].ToString() + "," + 
 				ADXR(10,14)[0].ToString() + "," + 
+				CalculatePricePCT(Close[0],APZ(2,20).Lower[0],3) + "," + 
+				CalculatePricePCT(Close[0],APZ(2,20).Upper[0],3) + "," + 
 				AroonOscillator(14)[0].ToString()+ "," + 
 				ATR(14)[0].ToString()  + "," +
+				CalculatePricePCT(Close[0],Bollinger(2,14).Lower[0],3) + "," +
+				CalculatePricePCT(Close[0],Bollinger(2,14)[0],3) + "," +
+				CalculatePricePCT(Close[0],Bollinger(2,14).Upper[0],3) + "," +
 				BOP(14)[0].ToString() + "," +
+				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R1[0],3) + "," +
+				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R2[0],3) + "," +
+				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R3[0],3) + "," +
+				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R4[0],3) + "," +			
+				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S1[0],3) + "," +
+				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S2[0],3) + "," +
+				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S3[0],3) + "," +
+				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S4[0],3) + "," +			
 				CCI(14)[0].ToString()  + "," +
 				ChaikinMoneyFlow(21)[0].ToString()  + "," +
 				ChaikinOscillator(3,10)[0].ToString()  + "," +
 				ChaikinVolatility(10,10)[0].ToString()  + "," +
 				ChoppinessIndex(14)[0].ToString()  + "," +
 				CMO(14)[0].ToString()+ "," +
+				CalculatePricePCT(Close[0],CurrentDayOHL().CurrentOpen[0],3)+ "," +
+				CalculatePricePCT(Close[0],CurrentDayOHL().CurrentLow[0],3)+ "," +
+				CalculatePricePCT(Close[0],CurrentDayOHL().CurrentHigh[0],3)+ "," +
 				DisparityIndex(25)[0].ToString() + "," +
 				DM(14).DiPlus[0].ToString() + "," +
 				DM(14).DiMinus[0].ToString() + "," +
 				DMI(14)[0].ToString() + "," +
+				CalculatePricePCT(Close[0],DonchianChannel(14).Lower[0],3) + "," +
+				CalculatePricePCT(Close[0],DonchianChannel(14)[0],3) + "," +
+				CalculatePricePCT(Close[0],DonchianChannel(14).Upper[0],3) + "," +			
 				DoubleStochastics(10).K[0].ToString() + "," +
 				EaseOfMovement(10,1000)[0].ToString() + "," + 
+				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).Pp[0],3) + "," +	
+				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R1[0],3) + "," +
+				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R2[0],3) + "," +
+				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R3[0],3) + "," +
+				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S1[0],3) + "," +
+				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S2[0],3) + "," +
+				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S3[0],3) + "," +
 				FisherTransform(10)[0].ToString() + "," + 
 				FOSC(14)[0].ToString() + "," +
+				CalculatePricePCT(Close[0],KAMA(2,10,30)[0],3) + "," +
+				CalculatePricePCT(Close[0],KeltnerChannel(1.5,10).Lower[0],3) + "," +
+				CalculatePricePCT(Close[0],KeltnerChannel(1.5,10)[0],3) + "," +
+				CalculatePricePCT(Close[0],KeltnerChannel(1.5,10).Upper[0],3) + "," +
+				CalculatePricePCT(Close[0],LinReg(14)[0],3) + "," +
+				CalculatePricePCT(Close[0],LinRegIntercept(14)[0],3) + "," +
+				Math.Round(LinRegSlope(14)[0],1).ToString() + "," +
 				MACD(12,26,9)[0].ToString() + "," +
 				MACD(12,26,9).Avg[0].ToString() + "," +
 				MACD(12,26,9).Diff[0].ToString() + "," +
+				CalculatePricePCT(Close[0],MAMA(0.5,0.05).Default[0],3) + "," +
+				CalculatePricePCT(Close[0],MAMA(0.5,0.05).Fama[0],3) + "," +
 				MFI(14)[0].ToString() + "," +
 				Momentum(14)[0].ToString() + "," +
 				MoneyFlowOscillator(20)[0].ToString() + "," +
-				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaOpen[0].ToString() + "," + 
-				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaClose[0].ToString() + "," +
-				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaHigh[0].ToString() + "," +
-				//OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Session,0).DeltaLow[0].ToString() + "," + 
+				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaOpen[0].ToString() + "," + 
+				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaClose[0].ToString() + "," +
+				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaHigh[0].ToString() + "," +
+				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaLow[0].ToString() + "," + 
+				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).VWAP[0],3) + "," +
+				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev1Lower[0],3) + "," +			
+				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev1Upper[0],3) + "," +
+				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev2Lower[0],3) + "," +
+				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev2Upper[0],3) + "," +
+				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev3Lower[0],3) + "," +
+				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev3Upper[0],3) + "," +
+				CalculatePricePCT(Close[0],ParabolicSAR(0.02,0.2,0.02)[0],3) + "," +
 				PFE(14,10)[0].ToString() + "," +
 				PPO(12,26,9).Smoothed[0].ToString() + "," +
 				PriceOscillator(12,26,9)[0].ToString() + "," +
@@ -303,15 +409,23 @@ namespace NinjaTrader.NinjaScript.Strategies
 				StochasticsFast(3,14).K[0].ToString() + "," +
 				TRIX(14,3)[0].ToString() + "," +
 				TRIX(14,3).Signal[0].ToString() + "," +
+				CalculatePricePCT(Close[0],TSF(3,14)[0],3) + "," +
 				TSI(3,14)[0].ToString() + "," +
 				UltimateOscillator(7,14,28)[0].ToString() + "," +
 				Vortex(14).VIPlus[0].ToString() + "," +
 				Vortex(14).VIMinus[0].ToString() + "," +
+				Math.Round(VOLMA(14)[0],0).ToString() + "," +
+				Math.Round(VolumeOscillator(12,26)[0],0).ToString() + "," +
 				VROC(14,3)[0].ToString() + "," +
 				WilliamsR(14)[0].ToString() + "," +
 				WisemanAwesomeOscillator()[0].ToString() + "," +
 				WoodiesCCI(2,5,14,34,25,6,60,100,2)[0].ToString() + "," +
-				WoodiesCCI(2,5,14,34,25,6,60,100,2).Turbo[0].ToString() 
+				WoodiesCCI(2,5,14,34,25,6,60,100,2).Turbo[0].ToString() + "," +
+				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).PP[0],3) + "," +
+				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).R1[0],3) + "," +
+				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).R2[0],3) + "," +
+				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).S1[0],3) + "," +
+				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).S2[0],3)
 			); // Append a new line to the file
 			//sw.Close(); // Close the file to allow future calls to access the file again.
 			
@@ -352,6 +466,5 @@ namespace NinjaTrader.NinjaScript.Strategies
 /// This region holds all the todo items
 /// </summary>
 #region Todo
-/// - add identified indicators
 /// - add formatting of output
 #endregion // Todo
