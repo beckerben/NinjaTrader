@@ -1,0 +1,102 @@
+﻿Indicator,Type,Ignore,Function,Data,Val,RoundPrecision,Exporter
+Accumulation/Distribution (ADL),Volume Indicators,,ADL,,Volume,,Y
+Adaptive Price Zone (APZ),Moving Averages and Related Indicators,,APZ,"Upper, Lower",Price,3,Y
+Aroon,Oscillators,Y,Aroon,"Upper, Lower",Oscillator,0,N
+Aroon Oscillator,Oscillators,,AroonOscillator,,Oscillator,0,Y
+Average Directional Index (ADX),Trend Indicators,,ADX,,Oscillator,0,Y
+Average Directional Movement Rating (ADXR),Trend Indicators,,ADXR,,Oscillator,0,Y
+Average True Range (ATR),Volatility Indicators,,ATR,,Oscillator,1,Y
+Balance of Power (BOP),Oscillators,,BOP,,Oscillator,3,Y
+Block Volume,Volume Indicators,Y,BlockVolume,,Volume,,N
+Bollinger Bands,Volatility Indicators,,Bollinger,"Upper, Middle, Lower",Price,0,Y
+BuySell Pressure,Other Indicators,Y,BuySellPressure,,Volume,,N
+BuySell Volume,Volume Indicators,Y,BuySellVolume,,Volume,,N
+Camarilla Pivots,Pivot Point Indicators,,CamarillaPivots,"R1, R2, R3, R4, S1, S2, S3, S4",Price,3,Y
+CandleStickPattern,Other Indicators,Y,CandlestickPattern,,,,N
+Chaikin Money Flow,Volume Indicators,,ChaikinMoneyFlow,,Oscillator,0,Y
+Chaikin Oscillator,Oscillators,,ChaikinOscillator,,Oscillator,0,Y
+Chaikin Volatility,Volatility Indicators,,ChaikinVolatility,,Oscillator,0,Y
+Chande Momentum Oscillator (CMO),Oscillators,,CMO,,Oscillator,0,Y
+Choppiness Index,Momentum Indicators,,ChoppinessIndex,,Oscillator,0,Y
+Commodity Channel Index (CCI),Oscillators,,CCI,,Oscillator,0,Y
+Correlation,Other Indicators,Y,Correlation,,,,N
+Current Day OHL,Pivot Point Indicators,,CurrentDayOHL,"CurrentOpen, CurrentHigh, CurrentLow",Price,3,Y
+Darvas,Trend Indicators,Y,Darvis,"Upper, Lower",Price,3,N
+Directional Movement (DM),Trend Indicators,,DM,"ADX, DiPlus, DiMinus",Oscillator,0,Y
+Directional Movement Index (DMI),Trend Indicators,,DMI,,Oscillator,0,Y
+Disparity Index,Moving Averages and Related Indicators,,DisparityIndex,,Oscillator,3,Y
+Donchian Channel,Volatility Indicators,,DonchianChannel,"Mean, Upper, Lower",Price,3,Y
+Double Stochastics,Oscillators,,DoubleStochastics,K,Oscillator,0,Y
+Dynamic Momentum Index (DMIndex),Oscillators,,DMIndex,,Oscillator,0,Y
+Ease of Movement,Oscillators,,EaseOfMovement,,Oscillator,0,Y
+Fibonacci Pivots,Pivot Point Indicators,,FibonacciPivots,"PP, R1, R2, R3, S1, S2, S3",Price,3,Y
+Fisher Transform,Oscillators,,FisherTransform,,Oscillator,1,Y
+Forecast Oscillator (FOSC),Oscillators,,FOSC,,Oscillator,2,Y
+Keltner Channel,Volatility Indicators,,KeltnerChannel,"Midline, Upper, Lower",Price,3,Y
+Linear Regression,Other Indicators,,LinReg,,Price,3,Y
+Linear Regression Intercept,Other Indicators,,LinRegIntercept,,Price,3,Y
+Linear Regression Slope,Other Indicators,,LinRegSlope,,Oscillator,1,Y
+MA Envelopes,Other Indicators,Y,MAEnvelopes,"Upper, Middle, Lower",Price,3,N
+Maximum (MAX),Other Indicators,Y,MAX,,Price,3,N
+Minimum (MIN),Other Indicators,Y,MIN,,Price,3,N
+Momentum,Oscillators,,Momentum,,Oscillator,0,Y
+Money Flow Index (MFI),Oscillators,,MFI,,Oscillator,0,Y
+Money Flow Oscillator,Oscillators,,MoneyFlowOscillator,,Oscillator,2,Y
+Moving Average - Double Exponential (DEMA),Moving Averages and Related Indicators,Y,DEMA,,,,N
+Moving Average - Exponential (EMA),Moving Averages and Related Indicators,Y,EMA,,Price,3,N
+Moving Average - Hull (HMA),Moving Averages and Related Indicators,Y,HMA,,,,N
+Moving Average - Kaufman's Adaptive (KAMA),Moving Averages and Related Indicators,,KAMA,,Price,3,Y
+Moving Average - Mesa Adaptive (MAMA),Moving Averages and Related Indicators,,MAMA,"Mama, Fama",Price,3,Y
+Moving Average - Simple (SMA),Moving Averages and Related Indicators,Y,SMA,,Price,3,N
+Moving Average - T3 (T3),Moving Averages and Related Indicators,Y,T3,,,,N
+Moving Average - Triangular (TMA),Moving Averages and Related Indicators,Y,TMA,,,,N
+Moving Average - Triple Exponential (TEMA),Moving Averages and Related Indicators,Y,TEMA,,,,N
+Moving Average - Triple Exponential (TRIX),Moving Averages and Related Indicators,,TRIX,"Value, Signal",Oscillator,4,Y
+Moving Average - Variable (VMA),Moving Averages and Related Indicators,Y,VMA,,,,N
+Moving Average - Volume Weighted (VWMA),Moving Averages and Related Indicators,Y,VWMA,,Price,3,N
+Moving Average - Weighted (WMA),Moving Averages and Related Indicators,Y,WMA,,,,N
+Moving Average - Zero Lag Exponential (ZLEMA),Moving Averages and Related Indicators,Y,ZLEMA,,,,N
+Moving Average Convergence-Divergence (MACD),Moving Averages and Related Indicators,,MACD,"Value, Avg, Diff",Oscillator,1,Y
+Moving Average Ribbon,Moving Averages and Related Indicators,Y,MovingAverageribbon,,,,N
+n Bars Down,Other Indicators,Y,NBarsDown,,,,N
+n Bars Up,Other Indicators,Y,NBarsuP,,,,N
+Net Change Display,Other Indicators,Y,NetChangeDisplay,,,,N
+On Balance Volume (OBV),Volume Indicators,Y,OBV,,,,N
+Order Flow Cumulative Delta,Volume Indicators,,OrderFlowCumulativeDelta,"DeltaOpen, DeltaHigh, DeltaLow, DeltaClose",Volume,,Y
+Order Flow VWAP,Pivot Point Indicators,,OrderFlowVWAP,"VWAP, StdDev1Upper, StdDev1Lower, StdDev2Upper, StdDev2Lower, StdDev3Upper, StdDev3Lower",Price,3,Y
+Parabolic SAR,Trend Indicators,,ParabolicSAR,,Price,3,Y
+Percentage Price Oscillator (PPO),Oscillators,,PPO,,Oscillator,3,Y
+Pivots,Pivot Point Indicators,Y,Pivots,"PP, R1, R2, R3, S1, S2, S3",Price,3,N
+Polarized Fractal Efficiency (PFE),Oscillators,,PFE,,Oscillator,2,Y
+Price Oscillator,Oscillators,,PriceOscillator,,Oscillator,1,Y
+Prior Day OHLC,Other Indicators,Y,PriorDayOHLC,,Price,3,N
+Psychological Line,Oscillators,,PsychologicalLine,,Volume,,Y
+Range,Other Indicators,Y,Range,,,,N
+Range Indicator (RIND),Oscillators,,RIND,,Oscillator,0,Y
+Rate of Change (ROC),Momentum Indicators,,ROC,,Oscillator,2,Y
+Regression Channel,Other Indicators,Y,RegressionChannel,,Price,3,N
+Relative Spread Strength (RSS),Oscillators,,RSS,,Oscillator,0,Y
+Relative Strength Index (RSI),Oscillators,,RSI,,Oscillator,0,Y
+Relative Vigor Index,Oscillators,,RelativeVigorIndex,,Oscillator,2,Y
+Relative Volatility Index (RVI),Oscillators,,RVI,,Oscillator,0,Y
+R-squared,Other Indicators,,RSquared,,Oscillator,2,Y
+Standard Deviation (StdDev),Other Indicators,,StdDev,,Oscillator,1,Y
+Standard Error (StdError),Other Indicators,Y,StdError,,Price,3,N
+Stochastics,Oscillators,,Stochastics,"Value, D, K",Oscillator,0,Y
+Stochastics Fast,Oscillators,,StochasticsFast,"Value, D, K",Oscillator,0,Y
+Stochastics RSI (StochRSI),Oscillators,,StochRSI,,Oscillator,2,Y
+Summation (SUM),Other Indicators,Y,SUM,,,,N
+Swing,Other Indicators,Y,Swing,,,,N
+Time Series Forecast (TSF),Moving Averages and Related Indicators,,TSF,,Price,3,Y
+True Strength Index (TSI),Momentum Indicators,,TSI,,Oscillator,0,Y
+Ultimate Oscillator,Oscillators,,UltimateOscillator,,Oscillator,0,Y
+Volume (VOL),Volume Indicators,Y,VOL,,,,N
+Volume Moving Average (VOLMA),Moving Averages and Related Indicators,,VOLMA,,Oscillator,0,Y
+Volume Oscillator,Oscillators,,VolumeOscillator,,Oscillator,0,Y
+Volume Rate of Change (VROC),Volume Indicators,,VROC,,Oscillator,0,Y
+Volume Up Down,Volume Indicators,Y,VolumeUpDown,,,,N
+Vortex,Oscillators,,Vortex,"VIPlus, VIMinus",Oscillator,1,Y
+Williams %R,Oscillators,,WilliamsR,,Oscillator,0,Y
+Wiseman Awesom Oscillator,Oscillators,,WisemanAwesomeOscillator,,Oscillator,1,Y
+Woodies Pivots,Pivot Point Indicators,,WoodiesPivots,"PP, R1, R2, S1, S2",Price,3,Y
+ZigZag,Trend Indicators,Y,ZigZag,,Price,3,N
