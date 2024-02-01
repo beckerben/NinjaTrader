@@ -191,7 +191,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 				); 						
 			}
 		}
-		
+
+
+		/// <summary>
+		/// Calculates the percentage difference between the base price and the indicator price.
+		/// </summary>
+		/// <param name="basePrice">The base price.</param>
+		/// <param name="indPrice">The indicator price.</param>
+		/// <param name="intPrecision">The precision of the calculated percentage.</param>
+		/// <returns>The calculated percentage difference.</returns>
 	    public static double CalculatePricePCT(double basePrice, double indPrice, int intPrecision)
 	    {
 	        if (basePrice == 0)
@@ -463,10 +471,3 @@ namespace NinjaTrader.NinjaScript.Strategies
 				
 	}
 }
-
-/// <summary>
-/// This region holds all the todo items
-/// </summary>
-#region Todo
-/// - add formatting of output
-#endregion // Todo
