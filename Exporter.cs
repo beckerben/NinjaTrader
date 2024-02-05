@@ -316,7 +316,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			priorCloseHigher = closehigher;
 			
-			sw.WriteLine(CurrentBar.ToString() + "," + Time[0].ToString("yyyy-MM-dd HH:mm:ss") + "," + 
+			sw.WriteLine(
+				CurrentBar.ToString() + "," + 
+				Time[0].ToString("yyyy-MM-dd HH:mm:ss.fff") + "," + 
 				Open[0].ToString() + "," +
 				High[0].ToString() + "," + 
 				Low[0].ToString() + "," + 
