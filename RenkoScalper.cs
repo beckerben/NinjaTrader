@@ -271,12 +271,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (_positionInfo.PositionType != MarketPosition.Flat || !Enable_Long)
 				return false;
-		
+				
 			//TODO: enter strat long
 			var result = false;
 			// Long Entry Conditions
 			if (rsi[0] > 50 && 
-				CrossAbove(fastEMA,slowEMA,3) )
+				CrossAbove(fastEMA,slowEMA,1) &&
+				fastEMA[0] > slowEMA[0]
+				)
 			{
 				result = true;
 			}
@@ -292,7 +294,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 			var result = false;
 			// Short Entry Conditions
 			if (rsi[0] < 50 && 
-				CrossBelow(fastEMA,slowEMA,3))
+				CrossBelow(fastEMA,slowEMA,1) &&
+				fastEMA[0] < slowEMA[0] 
+				)
 			{
 				result = true;
 			}
@@ -545,6 +549,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		protected override void OnBarUpdate()
 		{
+			
+			if (CurrentBar < BarsRequiredToTrade)
+				return;
+
 			if (!(IsFirstTickOfBar || Calculate == Calculate.OnBarClose) )
 				return;
 			
