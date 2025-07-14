@@ -25,14 +25,13 @@ using NinjaTrader.NinjaScript.DrawingTools;
 //This namespace holds Strategies in this folder and is required. Do not change it. 
 namespace NinjaTrader.NinjaScript.Strategies
 {
-	[Gui.CategoryOrder("NetDelta", 1000100)]
+	[Gui.CategoryOrder("Trend EMA", 1000100)]
 	[Gui.CategoryOrder("Entry&Exit", 1000200)]
 	[Gui.CategoryOrder("Profit&Loss", 1000300)]
 	[Gui.CategoryOrder("Trading", 1000400)]
 	[Gui.CategoryOrder("Display", 1000500)]
 	[Gui.CategoryOrder("ATM", 1000600)]
-	
-	public class OrderFlowDelta : Strategy
+	public class RenkoScalper : Strategy
 	{
 		#region Classes
 		
@@ -80,7 +79,6 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 		#region Variables
 		
-		private OrderFlowCumulativeDelta _OFCD;
 		private PositionInfo _positionInfo;
 		private PositionInfo _lastPositionInfo;
 		private double _totalLossAmount;
@@ -92,6 +90,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private bool _isLongDisabled;
 		private bool _isShortDisabled;
 		
+		//TODO: add any variables
+		private Indicator rsi;
+		private Indicator fastEMA;
+		private Indicator slowEMA;		
+		
 		#endregion
 		
 		#region Initialization
@@ -100,8 +103,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (State == State.SetDefaults)
 			{
-				Description									= @"OrderFlowDelta";
-				Name										= "OrderFlowDelta";
+				Description									= @"Becker";
+				Name										= "RenkoScalper";
 				Calculate									= Calculate.OnBarClose;
 				EntriesPerDirection							= 1;
 				EntryHandling								= EntryHandling.AllEntries;
@@ -120,14 +123,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				// Disable this property for performance gains in Strategy Analyzer optimizations
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= true;
-				
-				NetDelta = 50;
-
 				Enable_Long = true;
-				Bars_Above_Trend_For_Long = 3;
 				Enable_Short = true;
-				Bars_Below_Trend_For_Short = 3;
-				Exit_By_First_Opposite_Bar = true;
 				Enable_Profit_Target = false;
 				Profit_Target_Ticks = 10;
 				Enable_Stop_Loss = false;
@@ -136,11 +133,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Disable_Trading_By_Loss_Amount = false;
 				No_Trading_Loss_Amount = 0d;
 				Atm_Strategy_Template = string.Empty;
+				
+				//TODO: set any defaults
+			
 			}
 			else if (State == State.Configure)
 			{
-				_OFCD = OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk, CumulativeDeltaPeriod.Bar, 0);
-				AddChartIndicator(_OFCD);
+				//TODO: set any indicators
+				rsi = RSI(14,3);
+				fastEMA = EMA(5);
+				slowEMA = EMA(20);
+			
+				//AddChartIndicator(rsi);
+				AddChartIndicator(fastEMA);
+				AddChartIndicator(slowEMA);
 				
 				_positionInfo = new PositionInfo();
 				_lastPositionInfo = new PositionInfo();
@@ -160,6 +166,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 				
 				_markerFont = new SimpleFont("Arial", 10);
+			}
+			else if (State == State.DataLoaded)
+			{
+				
 			}
 			else if (State == State.Realtime)
 			{
@@ -246,7 +256,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (_positionInfo.PositionType == MarketPosition.Flat || CurrentBar < 1)
 				return false;
 			
-			return _positionInfo.PositionType == MarketPosition.Long && Close[0] < Close[1] && Exit_By_First_Opposite_Bar;
+			return _positionInfo.PositionType == MarketPosition.Long && Close[0] < Close[1] ;
 		}
 		
 		private bool IsShortExit()
@@ -254,24 +264,24 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (_positionInfo.PositionType == MarketPosition.Flat || CurrentBar < 1)
 				return false;
 			
-			return _positionInfo.PositionType == MarketPosition.Short && Close[0] > Close[1] && Exit_By_First_Opposite_Bar;
+			return _positionInfo.PositionType == MarketPosition.Short && Close[0] > Close[1] ;
 		}
 		
 		private bool IsLongEntry()
 		{
 			if (_positionInfo.PositionType != MarketPosition.Flat || !Enable_Long)
 				return false;
-			
-			if (CurrentBar < Bars_Above_Trend_For_Long)
-				return false;
-			
+				
+			//TODO: enter strat long
 			var result = false;
-			
-			if ((_OFCD.DeltaClose[0] < 0) && (Math.Abs(_OFCD.DeltaClose[0]) >= NetDelta) && (Close[0] > Open[0]))
+			// Long Entry Conditions
+			if (rsi[0] > 50 && 
+				CrossAbove(fastEMA,slowEMA,1) &&
+				fastEMA[0] > slowEMA[0]
+				)
 			{
-				result = true;	
+				result = true;
 			}
-
 			return result;
 		}
 		
@@ -279,14 +289,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{
 			if (_positionInfo.PositionType != MarketPosition.Flat || !Enable_Short)
 				return false;
-			
-			if (CurrentBar < Bars_Below_Trend_For_Short)
-				return false;
-			
+
+			//TODO: enter strat short
 			var result = false;
-			if ((_OFCD.DeltaClose[0] > 0) && (Math.Abs(_OFCD.DeltaClose[0]) >= NetDelta) && (Close[0] < Open[0]))
+			// Short Entry Conditions
+			if (rsi[0] < 50 && 
+				CrossBelow(fastEMA,slowEMA,1) &&
+				fastEMA[0] < slowEMA[0] 
+				)
 			{
-				result = true;	
+				result = true;
 			}
 			
 			return result;
@@ -537,7 +549,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		protected override void OnBarUpdate()
 		{
-			if (!(IsFirstTickOfBar || Calculate == Calculate.OnBarClose))
+			
+			if (CurrentBar < BarsRequiredToTrade)
+				return;
+
+			if (!(IsFirstTickOfBar || Calculate == Calculate.OnBarClose) )
 				return;
 			
 			if (!IsTradingTime())
@@ -560,16 +576,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 		#region Properties
 		
-		#region Delta
+		//TODO: enter variables
+		#region StratProperties
 		
-		[NinjaScriptProperty]
-		[Range(0, Int32.MaxValue)]
-		[Display(Name="NetDelta", Description="Volume Net Delta",  Order = 1, GroupName = "Delta")]
-        public int NetDelta
-        {
-            get; set;
-        }
-		
+
 		
 		#endregion
 		
@@ -581,31 +591,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{ get; set; }
 		
 		[NinjaScriptProperty]
-		[Range(1, Int32.MaxValue)]
-		[Display(Name="Bars Above Trend For Long Entry", Description="Bars Above Trend For Long Entry",  Order = 2, GroupName = "Entry&Exit")]
-        public int Bars_Above_Trend_For_Long
-        {
-            get; set;
-        }
-		
-		[NinjaScriptProperty]
 		[Display(Name="Enable Short Trades", Description="Enable Short Trades", Order = 3, GroupName="Entry&Exit")]
 		public bool Enable_Short
 		{ get; set; }
-		
-		[NinjaScriptProperty]
-		[Range(1, Int32.MaxValue)]
-		[Display(Name="Bars Below Trend For Long Short", Description="Bars Below Trend For Long Short",  Order = 4, GroupName = "Entry&Exit")]
-        public int Bars_Below_Trend_For_Short
-        {
-            get; set;
-        }
-		
-		[NinjaScriptProperty]
-		[Display(Name="Exit by the First Opposite Bar", Description="Exit by the First Opposite Bar", Order = 5, GroupName="Entry&Exit")]
-		public bool Exit_By_First_Opposite_Bar
-		{ get; set; }
-		
+
 		#endregion
 		
 		#region Profit&Loss
