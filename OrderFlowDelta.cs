@@ -267,7 +267,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			var result = false;
 			
-			if ((_OFCD.DeltaClose[0] > 0) && (Math.Abs(_OFCD.DeltaClose[0]) >= NetDelta) && (Close[0] < Open[0]))
+			if ((_OFCD.DeltaClose[0] < 0) && (Math.Abs(_OFCD.DeltaClose[0]) >= NetDelta) && (Close[0] > Open[0]))
 			{
 				result = true;	
 			}
@@ -284,7 +284,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				return false;
 			
 			var result = false;
-			if ((_OFCD.DeltaClose[0] < 0) && (Math.Abs(_OFCD.DeltaClose[0]) >= NetDelta) && (Close[0] > Open[0]))
+			if ((_OFCD.DeltaClose[0] > 0) && (Math.Abs(_OFCD.DeltaClose[0]) >= NetDelta) && (Close[0] < Open[0]))
 			{
 				result = true;	
 			}
