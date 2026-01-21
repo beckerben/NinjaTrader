@@ -29,9 +29,12 @@ namespace NinjaTrader.NinjaScript.Indicators
 				Period						= 21;
 				HighestHighColor			= Brushes.Green;
 				LowestLowColor				= Brushes.Red;
+				ShowMidline					= true;
+				MidlineColor				= Brushes.Gray;
 
 				AddPlot(new Stroke(HighestHighColor, 1), PlotStyle.Line, "Highest High");
 				AddPlot(new Stroke(LowestLowColor, 1), PlotStyle.Line, "Lowest Low");
+				AddPlot(new Stroke(MidlineColor, 1), PlotStyle.Line, "Midline");
 			}
 		}
 
@@ -41,11 +44,20 @@ namespace NinjaTrader.NinjaScript.Indicators
 			Plots[0].Brush = HighestHighColor;
 			Plots[1].Brush = LowestLowColor;
 
+			// Show/hide midline based on property
+			Plots[2].Brush = ShowMidline ? MidlineColor : Brushes.Transparent;
+
 			if (CurrentBar < Period)
 				return;
 
 			Values[0][0] = MAX(High, Period)[0];
 			Values[1][0] = MIN(Low, Period)[0];
+			
+			// Calculate and plot midline (average of highest high and lowest low)
+			if (ShowMidline)
+				Values[2][0] = (Values[0][0] + Values[1][0]) / 2.0;
+			else
+				Values[2][0] = double.NaN;
 		}
 
 		#region Properties
@@ -75,6 +87,20 @@ namespace NinjaTrader.NinjaScript.Indicators
 			set { LowestLowColor = Serialize.StringToBrush(value); }
 		}
 
+		[Display(Name = "Show Midline", Description = "Enable/disable the midline display", GroupName = "NinjaScriptParameters", Order = 3)]
+		public bool ShowMidline { get; set; }
+
+		[Display(Name = "Midline Color", Description = "Color for the midline", GroupName = "NinjaScriptParameters", Order = 4)]
+		[XmlIgnore]
+		public Brush MidlineColor { get; set; }
+
+		[Browsable(false)]
+		public string MidlineColorSerialize
+		{
+			get { return Serialize.BrushToString(MidlineColor); }
+			set { MidlineColor = Serialize.StringToBrush(value); }
+		}
+
 		[Browsable(false)]
 		[XmlIgnore]
 		public Series<double> HighestHigh => Values[0];
@@ -82,6 +108,10 @@ namespace NinjaTrader.NinjaScript.Indicators
 		[Browsable(false)]
 		[XmlIgnore]
 		public Series<double> LowestLow => Values[1];
+
+		[Browsable(false)]
+		[XmlIgnore]
+		public Series<double> Midline => Values[2];
 		#endregion
 	}
 }
