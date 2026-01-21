@@ -1,19 +1,13 @@
-﻿*.dll
-*.resx
-NinjaTrader.Vendor.cs
-NinjaTrader.Custom.csproj
-NinjaTrader.Custom.pdb
-NinjaTrader.Custom.xml
-BarsTypes
-ChartStyles
-DrawingTools
-ImportTypes
-MarketAnalyzerColumns
-OptimizationFitnesses
-Resource.Designer.cs
-ResourceEnumConverter.cs
-AssemblyInfo.cs
-Optimizers
-PerformanceMetrics
-ShareServices
-SuperDomColumns
+# Ignore everything in the root folder
+*
+
+# But don't ignore README.md
+!README.md
+
+# Don't ignore the Indicators folder and its contents
+!Indicators/
+!Indicators/**
+
+# Don't ignore the Strategies folder and its contents
+!Strategies/
+!Strategies/**
