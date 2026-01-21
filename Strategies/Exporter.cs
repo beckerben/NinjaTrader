@@ -47,14 +47,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 		/// <summary>
 		/// Determines if it is currently trading time based on the specified start and end times.
+		/// Only the hour and minute components of Start_Time and End_Time are used (date is ignored).
+		/// Returns true if the bar's time is within the specified range [Start_Time, End_Time).
+		/// Note: End_Time is exclusive (bar at End_Time will return false).
 		/// </summary>
 		/// <returns><c>true</c> if it is trading time; otherwise, <c>false</c>.</returns>
 		private bool IsTradingTime()
 		{
+			// Convert times to minutes since midnight for comparison (only using hour and minute)
 			var result = true;
 			var barTimestamp  = Time[0].Hour * 60 + Time[0].Minute;
 			var startTimestamp = Start_Time.Hour * 60 + Start_Time.Minute;
 			var endTimestamp = End_Time.Hour * 60 + End_Time.Minute;
+			
+			// Exclude bars that are before Start_Time or at/after End_Time (when time filter is enabled)
 			var isNoTradingTime = (barTimestamp < startTimestamp || barTimestamp >= endTimestamp) && Enable_Time;
 			if (isNoTradingTime)
 			{
@@ -187,7 +193,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"woodiespivot_r1,"+
 					"woodiespivot_r2,"+
 					"woodiespivot_s1,"+
-					"woodiespivot_s2"
+					"woodiespivot_s2,"+
+					"highestlowestlines_high,"+
+					"highestlowestlines_mid,"+
+					"highestlowestlines_low"
 				); 						
 			}
 		}
@@ -437,7 +446,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).R1[0],3) + "," +
 				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).R2[0],3) + "," +
 				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).S1[0],3) + "," +
-				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).S2[0],3)
+				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).S2[0],3) + "," +
+				CalculatePricePCT(Close[0],HighestLowestLines(21).HighestHigh[0],3) + "," +
+				CalculatePricePCT(Close[0],HighestLowestLines(21).Midline[0],3) + "," +
+				CalculatePricePCT(Close[0],HighestLowestLines(21).LowestLow[0],3)
 			); // Append a new line to the file
 			//sw.Close(); // Close the file to allow future calls to access the file again.
 			
@@ -455,18 +467,32 @@ namespace NinjaTrader.NinjaScript.Strategies
 			public string outputFile
 			{get; set;}		
 
-			[NinjaScriptProperty]
-			[Display(Name="Enable Time Filter", Description="Enable time filter", Order = 1, GroupName="Filters")]
-			public bool Enable_Time
-			{ get; set; }
-			
-			[Gui.PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
-			[Display(Name="Start Time", Description="Start time", Order = 3, GroupName="Filters")]
-			public DateTime Start_Time { get; set; }
-			
-			[Gui.PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
-			[Display(Name="End Time", Description="End time", Order = 4, GroupName="Filters")]
-			public DateTime End_Time { get; set; }
+		/// <summary>
+		/// Enable or disable the time filter. When enabled, only bars within the specified time range will be processed.
+		/// </summary>
+		[NinjaScriptProperty]
+		[Display(Name="Enable Time Filter", Description="Enable time filter to restrict data export to specific trading hours. When enabled, only bars within Start Time and End Time will be exported.", Order = 1, GroupName="Filters")]
+		public bool Enable_Time
+		{ get; set; }
+		
+		/// <summary>
+		/// Start time for the time filter. Enter as time of day (HH:mm:ss or HH:mm format).
+		/// Example: 09:30:00 for 9:30 AM. The date portion is ignored - only hours and minutes are used.
+		/// Bars with timestamps before this time will be excluded when Enable_Time is true.
+		/// </summary>
+		[Gui.PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
+		[Display(Name="Start Time", Description="Start time for filtering (HH:mm:ss format, e.g., 09:30:00). Only bars at or after this time will be exported when time filter is enabled.", Order = 3, GroupName="Filters")]
+		public DateTime Start_Time { get; set; }
+		
+		/// <summary>
+		/// End time for the time filter. Enter as time of day (HH:mm:ss or HH:mm format).
+		/// Example: 16:00:00 for 4:00 PM. The date portion is ignored - only hours and minutes are used.
+		/// Bars with timestamps at or after this time will be excluded when Enable_Time is true.
+		/// Note: The end time comparison uses '>=' so bars at exactly this time are excluded.
+		/// </summary>
+		[Gui.PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
+		[Display(Name="End Time", Description="End time for filtering (HH:mm:ss format, e.g., 16:00:00). Only bars before this time will be exported when time filter is enabled. Bars at exactly this time are excluded.", Order = 4, GroupName="Filters")]
+		public DateTime End_Time { get; set; }
 			
 		
 		#endregion // Properties
