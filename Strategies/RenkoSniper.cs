@@ -73,8 +73,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if(Position.MarketPosition == MarketPosition.Flat)
 			{
 				//evaluate 
-				//if (Time[0].Subtract(Time[1]).TotalMilliseconds <= MSTrigger) 
-				//{
+				if (Time[0].Subtract(Time[1]).TotalMilliseconds <= MSTrigger) 
+				{
 					//bar created in < trigger
 					//if(Close[0] > High[1] && (((Close[0]-Open[0])*4)/RenkoTick)>=0.90)
 					if ((((Close[0]-Open[0])*4)/RenkoTick)>=0.9 && Close[0]>EMA(14)[0] && Open[0]<EMA(14)[0])						
@@ -87,7 +87,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 					{
 						EnterShort();
 					}
-				//}
+				}
 			}
 		}
 

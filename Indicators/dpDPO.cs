@@ -158,6 +158,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 				AddPlot(new Stroke(Brushes.Gray, 2), PlotStyle.Bar, "DPOHisto");;
 				AddPlot(new Stroke(Brushes.Transparent, 1), PlotStyle.Dot, "Crossings");
 				AddPlot(new Stroke(Brushes.Transparent, 1), PlotStyle.Dot, "ComboSignals");
+				AddPlot(new Stroke(Brushes.Transparent, 1), PlotStyle.Dot, "SentinelSignals");
 				AddLine(Brushes.SaddleBrown, 0, "ZeroLine");
 				
 			}
@@ -539,6 +540,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 			dpoSeries[0] = SMA(Input,Smoothing)[0] - SMA(priceSeries, Length)[0]; 
 			DPO_Plot[0] = DPO_Rectified ? Math.Abs(dpoSeries[0]) : dpoSeries[0];
 			DPO_Histo[0] = DPO_Plot[0];
+			SentinelSignals[0] = 0; // Initialize to 0, will be set if Sentinel signal occurs
 			
 			PlotBrushes[0][0] = dpoSeries[0] >= 0 ? UpColor : DownColor; // original; above below midline
 
@@ -677,16 +679,20 @@ namespace NinjaTrader.NinjaScript.Indicators
 						}
 						Crossings[b+0] = 1;
 						
-						// SENTINELS
-						if (barsBack == 0) // do NOT repaint at all, realtime only
+						// SENTINELS - Calculate for all bars (historical and realtime) for plot values
+						int barsSincePriorCross = Crossings[b+1] == -1 ? 1 : (Crossings[b+2] == -1 ? 2 : 0);
+						if (!crossingUP && plSentinelUp[b])
+							barsSincePriorCross = 1;
+						
+						if ( 	(barsSincePriorCross == 1 && Sentinel1Bar_Enabled) 
+							||	(barsSincePriorCross == 2 && Sentinel2Bar_Enabled)
+							)
 						{
-							int barsSincePriorCross = Crossings[b+1] == -1 ? 1 : (Crossings[b+2] == -1 ? 2 : 0);
-							if (!crossingUP && plSentinelUp[b])
-								barsSincePriorCross = 1;
+							// Set Sentinel signal value in plot: +1 for 1-bar up, +2 for 2-bar up
+							SentinelSignals[b+0] = barsSincePriorCross == 1 ? 1.0 : 2.0;
 							
-							if ( 	(barsSincePriorCross == 1 && Sentinel1Bar_Enabled) 
-								||	(barsSincePriorCross == 2 && Sentinel2Bar_Enabled)
-								)
+							// Drawing markers only happens in realtime (barsBack == 0)
+							if (barsBack == 0) // do NOT repaint at all, realtime only
 							{
 								//if (barsBack > 0) Print("At barsBack "+b+" Text UP"); // CHECKER
 								// mark on chart	
@@ -730,16 +736,20 @@ namespace NinjaTrader.NinjaScript.Indicators
 						}
 						Crossings[b+0] = -1;
 						
-						// SENTINELS
-						if (barsBack == 0) // do NOT repaint at all, realtime only
+						// SENTINELS - Calculate for all bars (historical and realtime) for plot values
+						int barsSincePriorCross = Crossings[b+1] == 1 ? 1 : (Crossings[b+2] == 1 ? 2 : 0);
+						if (!crossingDOWN && plSentinelDn[b])
+							barsSincePriorCross = 1;
+						
+						if ( 	(barsSincePriorCross == 1 && Sentinel1Bar_Enabled) 
+							||	(barsSincePriorCross == 2 && Sentinel2Bar_Enabled)
+							)
 						{
-							int barsSincePriorCross = Crossings[b+1] == 1 ? 1 : (Crossings[b+2] == 1 ? 2 : 0);
-							if (!crossingDOWN && plSentinelDn[b])
-								barsSincePriorCross = 1;
+							// Set Sentinel signal value in plot: -1 for 1-bar down, -2 for 2-bar down
+							SentinelSignals[b+0] = barsSincePriorCross == 1 ? -1.0 : -2.0;
 							
-							if ( 	(barsSincePriorCross == 1 && Sentinel1Bar_Enabled) 
-								||	(barsSincePriorCross == 2 && Sentinel2Bar_Enabled)
-								)
+							// Drawing markers only happens in realtime (barsBack == 0)
+							if (barsBack == 0) // do NOT repaint at all, realtime only
 							{
 								//if (barsBack > 0) Print("At barsBack "+b+" Text DN"); // CHECKER
 								// mark on chart	
@@ -1225,6 +1235,13 @@ namespace NinjaTrader.NinjaScript.Indicators
 		public Series<double> ComboSignals
 		{
 			get { return Values[3]; }
+		}
+		
+		[Browsable(false)]
+		[XmlIgnore]
+		public Series<double> SentinelSignals
+		{
+			get { return Values[4]; }
 		}
 		#endregion
 
