@@ -33,14 +33,12 @@ namespace NinjaTrader.NinjaScript.Strategies
 	{
 		
 		#region Variables
-		
-		private ParabolicSAR ParabolicSAR1;
+
 		private StreamWriter sw;
 		private bool priorCloseHigher = false;
 		private int trendSequence = 1;
-		private TimeSpan startTime;
-		private TimeSpan endTime;
-		
+		private OrderFlowCumulativeDelta cumulativeDelta;
+
 		#endregion // variables
 		
 		#region Private methods
@@ -54,27 +52,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 		/// <returns><c>true</c> if it is trading time; otherwise, <c>false</c>.</returns>
 		private bool IsTradingTime()
 		{
-			// Convert times to minutes since midnight for comparison (only using hour and minute)
-			var result = true;
-			var barTimestamp  = Time[0].Hour * 60 + Time[0].Minute;
-			var startTimestamp = Start_Time.Hour * 60 + Start_Time.Minute;
-			var endTimestamp = End_Time.Hour * 60 + End_Time.Minute;
-			
-			// Exclude bars that are before Start_Time or at/after End_Time (when time filter is enabled)
-			var isNoTradingTime = (barTimestamp < startTimestamp || barTimestamp >= endTimestamp) && Enable_Time;
-			if (isNoTradingTime)
-			{
-				result = false;
-			}
-			return result;
+			if (!Enable_Time) return true;
+			int barMins   = Time[0].Hour * 60 + Time[0].Minute;
+			int startMins = Start_Time.Hour * 60 + Start_Time.Minute;
+			int endMins   = End_Time.Hour * 60 + End_Time.Minute;
+			return barMins >= startMins && barMins < endMins;
 		}		
 
 		private void WriteHeader(StreamWriter writer)
 		{
 			if (writer != null)
 			{
-				writer.WriteLine("barcount," + 
-					"date," + 
+				writer.WriteLine("barcount," +
+					"bar_start_date," +
+					"bar_duration_ms," +
 					"open,"+
 					"high,"+
 					"low,"+
@@ -219,6 +210,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 	        double percentageDifference = (difference / basePrice) * 100;
 	        return Math.Round(percentageDifference, intPrecision);
 	    }
+
+		private string V(Func<double> getValue)
+		{
+			try
+			{
+				double val = getValue();
+				if (double.IsNaN(val) || double.IsInfinity(val)) return "";
+				return val.ToString(System.Globalization.CultureInfo.InvariantCulture);
+			}
+			catch { return ""; }
+		}
 		
 		#endregion // Private methods
 		
@@ -236,14 +238,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 				ExitOnSessionCloseSeconds					= 30;
 				IsFillLimitOnTouch							= false;
 				MaximumBarsLookBack							= MaximumBarsLookBack.Infinite;
-				OrderFillResolution							= OrderFillResolution.High;
+				OrderFillResolution							= OrderFillResolution.Standard;
 				Slippage									= 0;
 				StartBehavior								= StartBehavior.WaitUntilFlat;
 				TimeInForce									= TimeInForce.Gtc;
 				TraceOrders									= false;
 				RealtimeErrorHandling						= RealtimeErrorHandling.StopCancelClose;
 				StopTargetHandling							= StopTargetHandling.PerEntryExecution;
-				BarsRequiredToTrade							= 20;
+				BarsRequiredToTrade							= 1;
 				// Disable this property for performance gains in Strategy Analyzer optimizations
 				// See the Help Guide for additional information
 				IsInstantiatedOnEachOptimizationIteration	= true;
@@ -263,6 +265,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}			
 			else if (State == State.Configure)
 			{
+				cumulativeDelta = OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk, CumulativeDeltaPeriod.Bar, 0);
 			}
 			else if (State == State.DataLoaded)
 			{				
@@ -299,6 +302,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 				//leave writer open for append
 				sw = File.AppendText(fullPath);
+				sw.AutoFlush = true;
 			}
 		}
 
@@ -308,11 +312,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 			if (CurrentBars[0] < BarsRequiredToTrade) return;
 			
-			bool closehigher = false;
-			if(Close[0] > Close[1]) 
-				closehigher = true;
-			else 
-				closehigher = false;
+			bool closehigher = Close[0] > Close[1];
 			
 			bool reversal = false;
 			if (priorCloseHigher != closehigher)
@@ -326,132 +326,132 @@ namespace NinjaTrader.NinjaScript.Strategies
 			priorCloseHigher = closehigher;
 			
 			sw.WriteLine(
-				CurrentBar.ToString() + "," + 
-				Time[0].ToString("yyyy-MM-dd HH:mm:ss.fff") + "," + 
+				CurrentBar.ToString() + "," +
+				Time[0].ToString("yyyy-MM-dd HH:mm:ss.fff") + "," +
+				((long)(Time[0] - Time[1]).TotalMilliseconds).ToString() + "," +
 				Open[0].ToString() + "," +
-				High[0].ToString() + "," + 
-				Low[0].ToString() + "," + 
-				Close[0].ToString() + "," + 
+				High[0].ToString() + "," +
+				Low[0].ToString() + "," +
+				Close[0].ToString() + "," +
 				Volume[0].ToString() + "," +
 				closehigher.ToString() + "," +
 				reversal.ToString() + "," +
 				trendSequence.ToString() + "," +
-				ADL().AD[0].ToString() + "," + 
-				Math.Round(ADX(14)[0],0).ToString() + "," + 
-				Math.Round(ADXR(10,14)[0],0).ToString() + "," + 
-				CalculatePricePCT(Close[0],APZ(2,20).Lower[0],3) + "," + 
-				CalculatePricePCT(Close[0],APZ(2,20).Upper[0],3) + "," + 
-				Math.Round(AroonOscillator(14)[0],0).ToString()+ "," + 
-				Math.Round(ATR(14)[0],1).ToString()  + "," +
-				CalculatePricePCT(Close[0],Bollinger(2,14).Lower[0],3) + "," +
-				CalculatePricePCT(Close[0],Bollinger(2,14)[0],3) + "," +
-				CalculatePricePCT(Close[0],Bollinger(2,14).Upper[0],3) + "," +
-				Math.Round(BOP(14)[0],3).ToString() + "," +
-				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R1[0],3) + "," +
-				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R2[0],3) + "," +
-				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R3[0],3) + "," +
-				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).R4[0],3) + "," +			
-				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S1[0],3) + "," +
-				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S2[0],3) + "," +
-				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S3[0],3) + "," +
-				CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0, 0, 0, 20).S4[0],3) + "," +			
-				Math.Round(CCI(14)[0],0).ToString()  + "," +
-				Math.Round(ChaikinMoneyFlow(21)[0],0).ToString()  + "," +
-				Math.Round(ChaikinOscillator(3,10)[0],0).ToString()  + "," +
-				Math.Round(ChaikinVolatility(10,10)[0],0).ToString()  + "," +
-				Math.Round(ChoppinessIndex(14)[0],0).ToString()  + "," +
-				Math.Round(CMO(14)[0],0).ToString()+ "," +
-				CalculatePricePCT(Close[0],CurrentDayOHL().CurrentOpen[0],3)+ "," +
-				CalculatePricePCT(Close[0],CurrentDayOHL().CurrentLow[0],3)+ "," +
-				CalculatePricePCT(Close[0],CurrentDayOHL().CurrentHigh[0],3)+ "," +
-				Math.Round(DisparityIndex(25)[0],3).ToString() + "," +
-				Math.Round(DM(14).DiPlus[0],0).ToString() + "," +
-				Math.Round(DM(14).DiMinus[0],0).ToString() + "," +
-				Math.Round(DMI(14)[0],0).ToString() + "," +
-				Math.Round(DMIndex(3)[0],0).ToString() + "," +
-				CalculatePricePCT(Close[0],DonchianChannel(14).Lower[0],3) + "," +
-				CalculatePricePCT(Close[0],DonchianChannel(14)[0],3) + "," +
-				CalculatePricePCT(Close[0],DonchianChannel(14).Upper[0],3) + "," +			
-				Math.Round(DoubleStochastics(10).K[0],0).ToString() + "," +
-				Math.Round(EaseOfMovement(10,1000)[0],0).ToString() + "," + 
-				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).Pp[0],3) + "," +	
-				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R1[0],3) + "," +
-				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R2[0],3) + "," +
-				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R3[0],3) + "," +
-				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S1[0],3) + "," +
-				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S2[0],3) + "," +
-				CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S3[0],3) + "," +
-				Math.Round(FisherTransform(10)[0],1).ToString() + "," + 
-				Math.Round(FOSC(14)[0],2).ToString() + "," +
-				CalculatePricePCT(Close[0],KAMA(2,10,30)[0],3) + "," +
-				CalculatePricePCT(Close[0],KeltnerChannel(1.5,10).Lower[0],3) + "," +
-				CalculatePricePCT(Close[0],KeltnerChannel(1.5,10)[0],3) + "," +
-				CalculatePricePCT(Close[0],KeltnerChannel(1.5,10).Upper[0],3) + "," +
-				CalculatePricePCT(Close[0],LinReg(14)[0],3) + "," +
-				CalculatePricePCT(Close[0],LinRegIntercept(14)[0],3) + "," +
-				Math.Round(LinRegSlope(14)[0],1).ToString() + "," +
-				Math.Round(MACD(12,26,9)[0],1).ToString() + "," +
-				Math.Round(MACD(12,26,9).Avg[0],1).ToString() + "," +
-				Math.Round(MACD(12,26,9).Diff[0],1).ToString() + "," +
-				CalculatePricePCT(Close[0],MAMA(0.5,0.05).Default[0],3) + "," +
-				CalculatePricePCT(Close[0],MAMA(0.5,0.05).Fama[0],3) + "," +
-				Math.Round(MFI(14)[0],0).ToString() + "," +
-				Math.Round(Momentum(14)[0],0).ToString() + "," +
-				Math.Round(MoneyFlowOscillator(20)[0],2).ToString() + "," +
-				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaOpen[0].ToString() + "," + 
-				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaClose[0].ToString() + "," +
-				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaHigh[0].ToString() + "," +
-				OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk,CumulativeDeltaPeriod.Bar,0).DeltaLow[0].ToString() + "," + 
-				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).VWAP[0],3) + "," +
-				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev1Lower[0],3) + "," +			
-				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev1Upper[0],3) + "," +
-				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev2Lower[0],3) + "," +
-				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev2Upper[0],3) + "," +
-				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev3Lower[0],3) + "," +
-				CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev3Upper[0],3) + "," +
-				CalculatePricePCT(Close[0],ParabolicSAR(0.02,0.2,0.02)[0],3) + "," +
-				Math.Round(PFE(14,10)[0],2).ToString() + "," +
-				Math.Round(PPO(12,26,9).Smoothed[0],3).ToString() + "," +
-				Math.Round(PriceOscillator(12,26,9)[0],1).ToString() + "," +
-				PsychologicalLine(10)[0].ToString() + "," +
-				Math.Round(RSquared(8)[0],2).ToString() + "," +
-				Math.Round(RelativeVigorIndex(10)[0],2).ToString() + "," +
-				Math.Round(RIND(3,10)[0],0).ToString() + "," +
-				Math.Round(ROC(14)[0],2).ToString() + "," +
-				Math.Round(RSI(14,3)[0],0).ToString() + "," +
-				Math.Round(RSI(14,3).Avg[0],0).ToString() + "," +
-				Math.Round(RSS(10,40,5)[0],0).ToString() + "," +
-				Math.Round(RVI(14)[0],0).ToString() + "," +
-				Math.Round(StdDev(14)[0],1).ToString() + "," +
-				Math.Round(StochRSI(14)[0],2).ToString() + "," +
-				Math.Round(Stochastics(7,14,3).D[0],0).ToString() + "," +
-				Math.Round(Stochastics(7,14,3).K[0],0).ToString() + "," +
-				Math.Round(StochasticsFast(3,14).D[0],0).ToString() + "," +
-				Math.Round(StochasticsFast(3,14).K[0],0).ToString() + "," +
-				Math.Round(TRIX(14,3)[0],4).ToString() + "," +
-				Math.Round(TRIX(14,3).Signal[0],4).ToString() + "," +
-				CalculatePricePCT(Close[0],TSF(3,14)[0],3) + "," +
-				Math.Round(TSI(3,14)[0],0).ToString() + "," +
-				Math.Round(UltimateOscillator(7,14,28)[0],0).ToString() + "," +
-				Math.Round(Vortex(14).VIPlus[0],1).ToString() + "," +
-				Math.Round(Vortex(14).VIMinus[0],1).ToString() + "," +
-				Math.Round(VOLMA(14)[0],0).ToString() + "," +
-				Math.Round(VolumeOscillator(12,26)[0],0).ToString() + "," +
-				Math.Round(VROC(14,3)[0],0).ToString() + "," +
-				Math.Round(WilliamsR(14)[0],0).ToString() + "," +
-				Math.Round(WisemanAwesomeOscillator()[0],1).ToString() + "," +
-				Math.Round(WoodiesCCI(2,5,14,34,25,6,60,100,2)[0],0).ToString() + "," +
-				Math.Round(WoodiesCCI(2,5,14,34,25,6,60,100,2).Turbo[0],0).ToString() + "," +
-				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).PP[0],3) + "," +
-				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).R1[0],3) + "," +
-				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).R2[0],3) + "," +
-				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).S1[0],3) + "," +
-				CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).S2[0],3) + "," +
-				CalculatePricePCT(Close[0],HighestLowestLines(21).HighestHigh[0],3) + "," +
-				CalculatePricePCT(Close[0],HighestLowestLines(21).Midline[0],3) + "," +
-				CalculatePricePCT(Close[0],HighestLowestLines(21).LowestLow[0],3)
-			); // Append a new line to the file
-			//sw.Close(); // Close the file to allow future calls to access the file again.
+				V(()=>ADL().AD[0]) + "," +
+				V(()=>Math.Round(ADX(14)[0],0)) + "," +
+				V(()=>Math.Round(ADXR(10,14)[0],0)) + "," +
+				V(()=>CalculatePricePCT(Close[0],APZ(2,20).Lower[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],APZ(2,20).Upper[0],3)) + "," +
+				V(()=>Math.Round(AroonOscillator(14)[0],0)) + "," +
+				V(()=>Math.Round(ATR(14)[0],1)) + "," +
+				V(()=>CalculatePricePCT(Close[0],Bollinger(2,14).Lower[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],Bollinger(2,14)[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],Bollinger(2,14).Upper[0],3)) + "," +
+				V(()=>Math.Round(BOP(14)[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R1[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R2[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R3[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R4[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S1[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S2[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S3[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CamarillaPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S4[0],3)) + "," +
+				V(()=>Math.Round(CCI(14)[0],0)) + "," +
+				V(()=>Math.Round(ChaikinMoneyFlow(21)[0],0)) + "," +
+				V(()=>Math.Round(ChaikinOscillator(3,10)[0],0)) + "," +
+				V(()=>Math.Round(ChaikinVolatility(10,10)[0],0)) + "," +
+				V(()=>Math.Round(ChoppinessIndex(14)[0],0)) + "," +
+				V(()=>Math.Round(CMO(14)[0],0)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CurrentDayOHL().CurrentOpen[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CurrentDayOHL().CurrentLow[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],CurrentDayOHL().CurrentHigh[0],3)) + "," +
+				V(()=>Math.Round(DisparityIndex(25)[0],3)) + "," +
+				V(()=>Math.Round(DM(14).DiPlus[0],0)) + "," +
+				V(()=>Math.Round(DM(14).DiMinus[0],0)) + "," +
+				V(()=>Math.Round(DMI(14)[0],0)) + "," +
+				V(()=>Math.Round(DMIndex(3)[0],0)) + "," +
+				V(()=>CalculatePricePCT(Close[0],DonchianChannel(14).Lower[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],DonchianChannel(14)[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],DonchianChannel(14).Upper[0],3)) + "," +
+				V(()=>Math.Round(DoubleStochastics(10).K[0],0)) + "," +
+				V(()=>Math.Round(EaseOfMovement(10,1000)[0],0)) + "," +
+				V(()=>CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).Pp[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R1[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R2[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).R3[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S1[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S2[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],FibonacciPivots(PivotRange.Daily,HLCCalculationMode.CalcFromIntradayData,0,0,0,20).S3[0],3)) + "," +
+				V(()=>Math.Round(FisherTransform(10)[0],1)) + "," +
+				V(()=>Math.Round(FOSC(14)[0],2)) + "," +
+				V(()=>CalculatePricePCT(Close[0],KAMA(2,10,30)[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],KeltnerChannel(1.5,10).Lower[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],KeltnerChannel(1.5,10)[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],KeltnerChannel(1.5,10).Upper[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],LinReg(14)[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],LinRegIntercept(14)[0],3)) + "," +
+				V(()=>Math.Round(LinRegSlope(14)[0],1)) + "," +
+				V(()=>Math.Round(MACD(12,26,9)[0],1)) + "," +
+				V(()=>Math.Round(MACD(12,26,9).Avg[0],1)) + "," +
+				V(()=>Math.Round(MACD(12,26,9).Diff[0],1)) + "," +
+				V(()=>CalculatePricePCT(Close[0],MAMA(0.5,0.05).Default[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],MAMA(0.5,0.05).Fama[0],3)) + "," +
+				V(()=>Math.Round(MFI(14)[0],0)) + "," +
+				V(()=>Math.Round(Momentum(14)[0],0)) + "," +
+				V(()=>Math.Round(MoneyFlowOscillator(20)[0],2)) + "," +
+				V(()=>cumulativeDelta.DeltaOpen[0]) + "," +
+				V(()=>cumulativeDelta.DeltaClose[0]) + "," +
+				V(()=>cumulativeDelta.DeltaHigh[0]) + "," +
+				V(()=>cumulativeDelta.DeltaLow[0]) + "," +
+				V(()=>CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).VWAP[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev1Lower[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev1Upper[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev2Lower[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev2Upper[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev3Lower[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],OrderFlowVWAP(VWAPResolution.Standard,Bars.TradingHours,VWAPStandardDeviations.Three,1,2,3).StdDev3Upper[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],ParabolicSAR(0.02,0.2,0.02)[0],3)) + "," +
+				V(()=>Math.Round(PFE(14,10)[0],2)) + "," +
+				V(()=>Math.Round(PPO(12,26,9).Smoothed[0],3)) + "," +
+				V(()=>Math.Round(PriceOscillator(12,26,9)[0],1)) + "," +
+				V(()=>PsychologicalLine(10)[0]) + "," +
+				V(()=>Math.Round(RSquared(8)[0],2)) + "," +
+				V(()=>Math.Round(RelativeVigorIndex(10)[0],2)) + "," +
+				V(()=>Math.Round(RIND(3,10)[0],0)) + "," +
+				V(()=>Math.Round(ROC(14)[0],2)) + "," +
+				V(()=>Math.Round(RSI(14,3)[0],0)) + "," +
+				V(()=>Math.Round(RSI(14,3).Avg[0],0)) + "," +
+				V(()=>Math.Round(RSS(10,40,5)[0],0)) + "," +
+				V(()=>Math.Round(RVI(14)[0],0)) + "," +
+				V(()=>Math.Round(StdDev(14)[0],1)) + "," +
+				V(()=>Math.Round(StochRSI(14)[0],2)) + "," +
+				V(()=>Math.Round(Stochastics(7,14,3).D[0],0)) + "," +
+				V(()=>Math.Round(Stochastics(7,14,3).K[0],0)) + "," +
+				V(()=>Math.Round(StochasticsFast(3,14).D[0],0)) + "," +
+				V(()=>Math.Round(StochasticsFast(3,14).K[0],0)) + "," +
+				V(()=>Math.Round(TRIX(14,3)[0],4)) + "," +
+				V(()=>Math.Round(TRIX(14,3).Signal[0],4)) + "," +
+				V(()=>CalculatePricePCT(Close[0],TSF(3,14)[0],3)) + "," +
+				V(()=>Math.Round(TSI(3,14)[0],0)) + "," +
+				V(()=>Math.Round(UltimateOscillator(7,14,28)[0],0)) + "," +
+				V(()=>Math.Round(Vortex(14).VIPlus[0],1)) + "," +
+				V(()=>Math.Round(Vortex(14).VIMinus[0],1)) + "," +
+				V(()=>Math.Round(VOLMA(14)[0],0)) + "," +
+				V(()=>Math.Round(VolumeOscillator(12,26)[0],0)) + "," +
+				V(()=>Math.Round(VROC(14,3)[0],0)) + "," +
+				V(()=>Math.Round(WilliamsR(14)[0],0)) + "," +
+				V(()=>Math.Round(WisemanAwesomeOscillator()[0],1)) + "," +
+				V(()=>Math.Round(WoodiesCCI(2,5,14,34,25,6,60,100,2)[0],0)) + "," +
+				V(()=>Math.Round(WoodiesCCI(2,5,14,34,25,6,60,100,2).Turbo[0],0)) + "," +
+				V(()=>CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).PP[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).R1[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).R2[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).S1[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData,20).S2[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],HighestLowestLines(21).HighestHigh[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],HighestLowestLines(21).Midline[0],3)) + "," +
+				V(()=>CalculatePricePCT(Close[0],HighestLowestLines(21).LowestLow[0],3))
+			);
 			
 		}
 		
