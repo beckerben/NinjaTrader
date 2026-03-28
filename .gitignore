@@ -11,3 +11,4 @@
 # Don't ignore the Strategies folder and its contents
 !Strategies/
 !Strategies/**
+**/.*
