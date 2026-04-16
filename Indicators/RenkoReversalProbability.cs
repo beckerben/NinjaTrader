@@ -67,7 +67,6 @@ namespace NinjaTrader.NinjaScript.Indicators
 				// Parameters
 				ReversalThreshold = 0.55;
 				LookbackBricks = 10;
-				ExhaustionThreshold = 0;  // 0 = off (SPEC-01 mode), >= 1 = only update lookup when consec meets threshold (SPEC-04 mode)
 				EMAPeriod = 20;
 				RSIPeriod = 14;
 				VolumeLookback = 10;
@@ -84,19 +83,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 			}
 			else if (State == State.Configure)
 			{
-				// Add 10-second secondary data series.
-				// When hosted by a strategy via AddChartIndicator(), the strategy
-				// must add all data series in its own Configure state — the indicator
-				// is not allowed to. We catch the exception to handle both cases:
-				// standalone (works) and hosted (already loaded by the strategy).
-				try
-				{
-					AddDataSeries(BarsPeriodType.Second, 10);
-				}
-				catch (Exception)
-				{
-					// Hosted by a strategy that already loaded the 10s series — expected
-				}
+				// Add 10-second secondary data series
+				AddDataSeries(BarsPeriodType.Second, 10);
 			}
 			else if (State == State.DataLoaded)
 			{
@@ -140,16 +128,9 @@ namespace NinjaTrader.NinjaScript.Indicators
 
 				if (dir0 != 0 && dir1 != 0)
 				{
-					// ExhaustionThreshold gate: when > 0, only update lookup for bars
-					// where consecutive count met the threshold (SPEC-04 filtered lookup)
-					bool meetsExhaustion = ExhaustionThreshold <= 0 || ConsecutiveCount(1) >= ExhaustionThreshold;
-
-					if (meetsExhaustion)
-					{
-						string prevBucket = BuildBucket(1);
-						bool wasReversal = dir0 != dir1;
-						UpdateLookup(prevBucket, wasReversal);
-					}
+					string prevBucket = BuildBucket(1);
+					bool wasReversal = dir0 != dir1;
+					UpdateLookup(prevBucket, wasReversal);
 				}
 			}
 
@@ -165,11 +146,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 			Lines[0].Value = ReversalThreshold;
 
 			// Step 5: Draw debug text
-			int consec = ConsecutiveCount(0);
 			int sampleCount = GetSampleCount(currentBucket);
 			string debugText = currentBucket + "  |  N=" + sampleCount;
-			if (ExhaustionThreshold > 0)
-				debugText += "  |  exh=" + (consec >= ExhaustionThreshold ? "YES" : "no") + " (" + consec + "/" + ExhaustionThreshold + ")";
 			Draw.TextFixed(this, "DebugBucket", debugText, TextPosition.BottomRight,
 				Brushes.White, new SimpleFont("Consolas", 11), Brushes.Transparent, Brushes.Black, 80);
 		}
@@ -320,48 +298,43 @@ namespace NinjaTrader.NinjaScript.Indicators
 		public int LookbackBricks { get; set; }
 
 		[NinjaScriptProperty]
-		[Range(0, 20)]
-		[Display(Name = "Exhaustion Threshold", Description = "0 = off (SPEC-01). When > 0, lookup only trains on bars where consecutive count >= this value (SPEC-04).", Order = 3, GroupName = "Parameters")]
-		public int ExhaustionThreshold { get; set; }
-
-		[NinjaScriptProperty]
 		[Range(2, 100)]
-		[Display(Name = "EMA Period (10s)", Order = 4, GroupName = "Parameters")]
+		[Display(Name = "EMA Period (10s)", Order = 3, GroupName = "Parameters")]
 		public int EMAPeriod { get; set; }
 
 		[NinjaScriptProperty]
 		[Range(2, 100)]
-		[Display(Name = "RSI Period (10s)", Order = 5, GroupName = "Parameters")]
+		[Display(Name = "RSI Period (10s)", Order = 4, GroupName = "Parameters")]
 		public int RSIPeriod { get; set; }
 
 		[NinjaScriptProperty]
 		[Range(2, 50)]
-		[Display(Name = "Volume Lookback", Order = 6, GroupName = "Parameters")]
+		[Display(Name = "Volume Lookback", Order = 5, GroupName = "Parameters")]
 		public int VolumeLookback { get; set; }
 
 		[NinjaScriptProperty]
 		[Range(1.0, 5.0)]
-		[Display(Name = "Volume High Ratio", Order = 7, GroupName = "Parameters")]
+		[Display(Name = "Volume High Ratio", Order = 6, GroupName = "Parameters")]
 		public double VolumeHighRatio { get; set; }
 
 		[NinjaScriptProperty]
 		[Range(0.1, 1.0)]
-		[Display(Name = "Volume Low Ratio", Order = 8, GroupName = "Parameters")]
+		[Display(Name = "Volume Low Ratio", Order = 7, GroupName = "Parameters")]
 		public double VolumeLowRatio { get; set; }
 
 		[NinjaScriptProperty]
 		[Range(50, 90)]
-		[Display(Name = "RSI Overbought", Order = 9, GroupName = "Parameters")]
+		[Display(Name = "RSI Overbought", Order = 8, GroupName = "Parameters")]
 		public double RSIOverbought { get; set; }
 
 		[NinjaScriptProperty]
 		[Range(10, 50)]
-		[Display(Name = "RSI Oversold", Order = 10, GroupName = "Parameters")]
+		[Display(Name = "RSI Oversold", Order = 9, GroupName = "Parameters")]
 		public double RSIOversold { get; set; }
 
 		[NinjaScriptProperty]
 		[Range(1, 100)]
-		[Display(Name = "Min History", Description = "Minimum samples before using bucket probability", Order = 11, GroupName = "Parameters")]
+		[Display(Name = "Min History", Description = "Minimum samples before using bucket probability", Order = 10, GroupName = "Parameters")]
 		public int MinHistory { get; set; }
 
 		[Browsable(false)]
@@ -382,18 +355,18 @@ namespace NinjaTrader.NinjaScript.Indicators
 	public partial class Indicator : NinjaTrader.Gui.NinjaScript.IndicatorRenderBase
 	{
 		private RenkoReversalProbability[] cacheRenkoReversalProbability;
-		public RenkoReversalProbability RenkoReversalProbability(double reversalThreshold, int lookbackBricks, int exhaustionThreshold, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
+		public RenkoReversalProbability RenkoReversalProbability(double reversalThreshold, int lookbackBricks, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
 		{
-			return RenkoReversalProbability(Input, reversalThreshold, lookbackBricks, exhaustionThreshold, eMAPeriod, rSIPeriod, volumeLookback, volumeHighRatio, volumeLowRatio, rSIOverbought, rSIOversold, minHistory);
+			return RenkoReversalProbability(Input, reversalThreshold, lookbackBricks, eMAPeriod, rSIPeriod, volumeLookback, volumeHighRatio, volumeLowRatio, rSIOverbought, rSIOversold, minHistory);
 		}
 
-		public RenkoReversalProbability RenkoReversalProbability(ISeries<double> input, double reversalThreshold, int lookbackBricks, int exhaustionThreshold, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
+		public RenkoReversalProbability RenkoReversalProbability(ISeries<double> input, double reversalThreshold, int lookbackBricks, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
 		{
 			if (cacheRenkoReversalProbability != null)
 				for (int idx = 0; idx < cacheRenkoReversalProbability.Length; idx++)
-					if (cacheRenkoReversalProbability[idx] != null && cacheRenkoReversalProbability[idx].ReversalThreshold == reversalThreshold && cacheRenkoReversalProbability[idx].LookbackBricks == lookbackBricks && cacheRenkoReversalProbability[idx].ExhaustionThreshold == exhaustionThreshold && cacheRenkoReversalProbability[idx].EMAPeriod == eMAPeriod && cacheRenkoReversalProbability[idx].RSIPeriod == rSIPeriod && cacheRenkoReversalProbability[idx].VolumeLookback == volumeLookback && cacheRenkoReversalProbability[idx].VolumeHighRatio == volumeHighRatio && cacheRenkoReversalProbability[idx].VolumeLowRatio == volumeLowRatio && cacheRenkoReversalProbability[idx].RSIOverbought == rSIOverbought && cacheRenkoReversalProbability[idx].RSIOversold == rSIOversold && cacheRenkoReversalProbability[idx].MinHistory == minHistory && cacheRenkoReversalProbability[idx].EqualsInput(input))
+					if (cacheRenkoReversalProbability[idx] != null && cacheRenkoReversalProbability[idx].ReversalThreshold == reversalThreshold && cacheRenkoReversalProbability[idx].LookbackBricks == lookbackBricks && cacheRenkoReversalProbability[idx].EMAPeriod == eMAPeriod && cacheRenkoReversalProbability[idx].RSIPeriod == rSIPeriod && cacheRenkoReversalProbability[idx].VolumeLookback == volumeLookback && cacheRenkoReversalProbability[idx].VolumeHighRatio == volumeHighRatio && cacheRenkoReversalProbability[idx].VolumeLowRatio == volumeLowRatio && cacheRenkoReversalProbability[idx].RSIOverbought == rSIOverbought && cacheRenkoReversalProbability[idx].RSIOversold == rSIOversold && cacheRenkoReversalProbability[idx].MinHistory == minHistory && cacheRenkoReversalProbability[idx].EqualsInput(input))
 						return cacheRenkoReversalProbability[idx];
-			return CacheIndicator<RenkoReversalProbability>(new RenkoReversalProbability(){ ReversalThreshold = reversalThreshold, LookbackBricks = lookbackBricks, ExhaustionThreshold = exhaustionThreshold, EMAPeriod = eMAPeriod, RSIPeriod = rSIPeriod, VolumeLookback = volumeLookback, VolumeHighRatio = volumeHighRatio, VolumeLowRatio = volumeLowRatio, RSIOverbought = rSIOverbought, RSIOversold = rSIOversold, MinHistory = minHistory }, input, ref cacheRenkoReversalProbability);
+			return CacheIndicator<RenkoReversalProbability>(new RenkoReversalProbability(){ ReversalThreshold = reversalThreshold, LookbackBricks = lookbackBricks, EMAPeriod = eMAPeriod, RSIPeriod = rSIPeriod, VolumeLookback = volumeLookback, VolumeHighRatio = volumeHighRatio, VolumeLowRatio = volumeLowRatio, RSIOverbought = rSIOverbought, RSIOversold = rSIOversold, MinHistory = minHistory }, input, ref cacheRenkoReversalProbability);
 		}
 	}
 }
@@ -402,14 +375,14 @@ namespace NinjaTrader.NinjaScript.MarketAnalyzerColumns
 {
 	public partial class MarketAnalyzerColumn : MarketAnalyzerColumnBase
 	{
-		public Indicators.RenkoReversalProbability RenkoReversalProbability(double reversalThreshold, int lookbackBricks, int exhaustionThreshold, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
+		public Indicators.RenkoReversalProbability RenkoReversalProbability(double reversalThreshold, int lookbackBricks, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
 		{
-			return indicator.RenkoReversalProbability(Input, reversalThreshold, lookbackBricks, exhaustionThreshold, eMAPeriod, rSIPeriod, volumeLookback, volumeHighRatio, volumeLowRatio, rSIOverbought, rSIOversold, minHistory);
+			return indicator.RenkoReversalProbability(Input, reversalThreshold, lookbackBricks, eMAPeriod, rSIPeriod, volumeLookback, volumeHighRatio, volumeLowRatio, rSIOverbought, rSIOversold, minHistory);
 		}
 
-		public Indicators.RenkoReversalProbability RenkoReversalProbability(ISeries<double> input , double reversalThreshold, int lookbackBricks, int exhaustionThreshold, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
+		public Indicators.RenkoReversalProbability RenkoReversalProbability(ISeries<double> input , double reversalThreshold, int lookbackBricks, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
 		{
-			return indicator.RenkoReversalProbability(input, reversalThreshold, lookbackBricks, exhaustionThreshold, eMAPeriod, rSIPeriod, volumeLookback, volumeHighRatio, volumeLowRatio, rSIOverbought, rSIOversold, minHistory);
+			return indicator.RenkoReversalProbability(input, reversalThreshold, lookbackBricks, eMAPeriod, rSIPeriod, volumeLookback, volumeHighRatio, volumeLowRatio, rSIOverbought, rSIOversold, minHistory);
 		}
 	}
 }
@@ -418,14 +391,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public partial class Strategy : NinjaTrader.Gui.NinjaScript.StrategyRenderBase
 	{
-		public Indicators.RenkoReversalProbability RenkoReversalProbability(double reversalThreshold, int lookbackBricks, int exhaustionThreshold, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
+		public Indicators.RenkoReversalProbability RenkoReversalProbability(double reversalThreshold, int lookbackBricks, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
 		{
-			return indicator.RenkoReversalProbability(Input, reversalThreshold, lookbackBricks, exhaustionThreshold, eMAPeriod, rSIPeriod, volumeLookback, volumeHighRatio, volumeLowRatio, rSIOverbought, rSIOversold, minHistory);
+			return indicator.RenkoReversalProbability(Input, reversalThreshold, lookbackBricks, eMAPeriod, rSIPeriod, volumeLookback, volumeHighRatio, volumeLowRatio, rSIOverbought, rSIOversold, minHistory);
 		}
 
-		public Indicators.RenkoReversalProbability RenkoReversalProbability(ISeries<double> input , double reversalThreshold, int lookbackBricks, int exhaustionThreshold, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
+		public Indicators.RenkoReversalProbability RenkoReversalProbability(ISeries<double> input , double reversalThreshold, int lookbackBricks, int eMAPeriod, int rSIPeriod, int volumeLookback, double volumeHighRatio, double volumeLowRatio, double rSIOverbought, double rSIOversold, int minHistory)
 		{
-			return indicator.RenkoReversalProbability(input, reversalThreshold, lookbackBricks, exhaustionThreshold, eMAPeriod, rSIPeriod, volumeLookback, volumeHighRatio, volumeLowRatio, rSIOverbought, rSIOversold, minHistory);
+			return indicator.RenkoReversalProbability(input, reversalThreshold, lookbackBricks, eMAPeriod, rSIPeriod, volumeLookback, volumeHighRatio, volumeLowRatio, rSIOverbought, rSIOversold, minHistory);
 		}
 	}
 }
