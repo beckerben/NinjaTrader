@@ -50,6 +50,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 		private ATR atr;
 		private SMA atrSma42;
 		private SMA volumeSMA;
+		private SimpleFont signalFont;
 
 		// HTF indicators
 		private EMA htfEmaFast;
@@ -131,6 +132,10 @@ namespace NinjaTrader.NinjaScript.Indicators
 				ShowTrailingStop	= true;
 				ShowDashboard		= true;
 				ShowBackgroundTint	= false;
+
+				AddPlot(new Stroke(Brushes.LimeGreen, 2), PlotStyle.Line, "FastEMAPlot");
+				AddPlot(new Stroke(Brushes.IndianRed, 2), PlotStyle.Line, "SlowEMAPlot");
+				AddPlot(new Stroke(Brushes.DimGray, 3), PlotStyle.Dot, "TrendEMAPlot");
 			}
 			else if (State == State.Configure)
 			{
@@ -153,6 +158,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 				atr			= ATR(AtrPeriod);
 				atrSma42	= SMA(atr, 42);
 				volumeSMA	= SMA(Volume, 20);
+				signalFont	= new SimpleFont { Size = 12 };
 			}
 		}
 
@@ -268,7 +274,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 			{
 				OpenTrade(TradeDirection.Long, close, bullScore);
 			}
-			else if (bearSignal && currentDirection != TradeDirection.Short && currentTradeState == TradeState.None)
+			else if (bearSignal && currentDirection != TradeDirection.Short)
 			{
 				OpenTrade(TradeDirection.Short, close, bearScore);
 			}
@@ -287,9 +293,15 @@ namespace NinjaTrader.NinjaScript.Indicators
 			// --- Visual: EMA Ribbon ---
 			if (ShowRibbon)
 			{
-				Draw.Line(this, "EmaFast" + CurrentBar, false, 0, emaFastVal, -1, emaFastVal, Brushes.LimeGreen, DashStyleHelper.Solid, 2);
-				Draw.Line(this, "EmaSlow" + CurrentBar, false, 0, emaSlowVal, -1, emaSlowVal, Brushes.IndianRed, DashStyleHelper.Solid, 2);
-				Draw.Dot(this, "EmaTrendDot" + CurrentBar, false, 0, emaTrendVal, Brushes.DimGray);
+				Values[0][0] = emaFastVal;
+				Values[1][0] = emaSlowVal;
+				Values[2][0] = emaTrendVal;
+			}
+			else
+			{
+				Values[0][0] = double.NaN;
+				Values[1][0] = double.NaN;
+				Values[2][0] = double.NaN;
 			}
 
 			// --- Visual: TP/SL Lines ---
@@ -379,9 +391,9 @@ namespace NinjaTrader.NinjaScript.Indicators
 				prevTrailingStop = stopLoss;
 
 				Draw.ArrowUp(this, "Signal" + CurrentBar, true, 0, Low[0] - 2 * TickSize, Brushes.LimeGreen);
-				Draw.Text(this, "SignalLabel" + CurrentBar, 
-					string.Format("Long {0}", GetSignalGrade(score)),
-					0, Low[0] - 2 * TickSize, Brushes.LimeGreen);
+				Draw.Text(this, "SignalLabel" + CurrentBar, false, string.Format("Long {0}", GetSignalGrade(score)),
+					0, Low[0] - 5 * TickSize, 0, Brushes.White, signalFont,
+					TextAlignment.Center, Brushes.Transparent, Brushes.LimeGreen, 90);
 			}
 			else // Short
 			{
@@ -408,9 +420,9 @@ namespace NinjaTrader.NinjaScript.Indicators
 				prevTrailingStop = stopLoss;
 
 				Draw.ArrowDown(this, "Signal" + CurrentBar, true, 0, High[0] + 2 * TickSize, Brushes.Red);
-				Draw.Text(this, "SignalLabel" + CurrentBar, 
-					string.Format("Short {0}", GetSignalGrade(score)),
-					0, High[0] + 2 * TickSize, Brushes.Red);
+				Draw.Text(this, "SignalLabel" + CurrentBar, false, string.Format("Short {0}", GetSignalGrade(score)),
+					0, High[0] + 5 * TickSize, 0, Brushes.White, signalFont,
+					TextAlignment.Center, Brushes.Transparent, Brushes.IndianRed, 90);
 			}
 
 			currentTradeState = TradeState.Active;
