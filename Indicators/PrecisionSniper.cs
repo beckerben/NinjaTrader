@@ -130,7 +130,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 				ShowTPSLLines		= true;
 				ShowTrailingStop	= true;
 				ShowDashboard		= true;
-				ShowBackgroundTint	= true;
+				ShowBackgroundTint	= false;
 			}
 			else if (State == State.Configure)
 			{
@@ -287,27 +287,28 @@ namespace NinjaTrader.NinjaScript.Indicators
 			// --- Visual: EMA Ribbon ---
 			if (ShowRibbon)
 			{
-				Brush ribbonBrush = emaFastVal > emaSlowVal ? Brushes.LimeGreen : Brushes.Red;
-				Draw.Line(this, "EmaFast" + CurrentBar, false, 0, emaFastVal, -1, emaFastVal, ribbonBrush, DashStyleHelper.Solid, 2);
-				Draw.Line(this, "EmaSlow" + CurrentBar, false, 0, emaSlowVal, -1, emaSlowVal, ribbonBrush, DashStyleHelper.Dash, 1);
-				Draw.Line(this, "EmaTrend" + CurrentBar, false, 0, emaTrendVal, -1, emaTrendVal, Brushes.Gray, DashStyleHelper.Dot, 1);
+				Draw.Line(this, "EmaFast" + CurrentBar, false, 0, emaFastVal, -1, emaFastVal, Brushes.LimeGreen, DashStyleHelper.Solid, 2);
+				Draw.Line(this, "EmaSlow" + CurrentBar, false, 0, emaSlowVal, -1, emaSlowVal, Brushes.IndianRed, DashStyleHelper.Solid, 2);
+				Draw.Dot(this, "EmaTrendDot" + CurrentBar, false, 0, emaTrendVal, Brushes.DimGray);
 			}
 
 			// --- Visual: TP/SL Lines ---
 			if (ShowTPSLLines && currentTradeState != TradeState.None && currentTradeState != TradeState.SLHit)
 			{
-				Draw.Line(this, "Entry", false, 0, entryPrice, -1, entryPrice, Brushes.DodgerBlue, DashStyleHelper.Solid, 1);
-				Draw.Line(this, "SL", false, 0, stopLoss, -1, stopLoss, Brushes.Red, DashStyleHelper.Solid, 1);
-				Draw.Line(this, "TP1", false, 0, tp1, -1, tp1, Brushes.LimeGreen, DashStyleHelper.Dash, 1);
-				Draw.Line(this, "TP2", false, 0, tp2, -1, tp2, Brushes.LimeGreen, DashStyleHelper.Dash, 1);
-				Draw.Line(this, "TP3", false, 0, tp3, -1, tp3, Brushes.LimeGreen, DashStyleHelper.Dash, 1);
+				int barsSinceEntry = Math.Max(1, CurrentBar - entryBar);
+				Draw.Line(this, "Entry", false, barsSinceEntry, entryPrice, 0, entryPrice, Brushes.DodgerBlue, DashStyleHelper.Solid, 1);
+				Draw.Line(this, "SL", false, barsSinceEntry, stopLoss, 0, stopLoss, Brushes.Red, DashStyleHelper.Solid, 1);
+				Draw.Line(this, "TP1", false, barsSinceEntry, tp1, 0, tp1, Brushes.LimeGreen, DashStyleHelper.Dash, 1);
+				Draw.Line(this, "TP2", false, barsSinceEntry, tp2, 0, tp2, Brushes.LimeGreen, DashStyleHelper.Dash, 1);
+				Draw.Line(this, "TP3", false, barsSinceEntry, tp3, 0, tp3, Brushes.LimeGreen, DashStyleHelper.Dash, 1);
 			}
 
 			// --- Visual: Trailing Stop Line ---
 			if (ShowTrailingStop && (currentTradeState == TradeState.TP1Hit 
 				|| currentTradeState == TradeState.TP2Hit || currentTradeState == TradeState.TP3Hit))
 			{
-				Draw.Line(this, "Trail", false, 0, trailingStop, -1, trailingStop, Brushes.Orange, DashStyleHelper.Dot, 2);
+				int barsSinceEntry = Math.Max(1, CurrentBar - entryBar);
+				Draw.Line(this, "Trail", false, barsSinceEntry, trailingStop, 0, trailingStop, Brushes.Orange, DashStyleHelper.Dot, 2);
 			}
 
 			// --- Visual: Background Tint on Signal ---
@@ -379,8 +380,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 
 				Draw.ArrowUp(this, "Signal" + CurrentBar, true, 0, Low[0] - 2 * TickSize, Brushes.LimeGreen);
 				Draw.Text(this, "SignalLabel" + CurrentBar, 
-					string.Format("Long {0} | Score: {1:F1}", Instrument.FullName, score),
-					0, Low[0] - 5 * TickSize, Brushes.LimeGreen);
+					string.Format("Long {0}", GetSignalGrade(score)),
+					0, Low[0] - 2 * TickSize, Brushes.LimeGreen);
 			}
 			else // Short
 			{
@@ -408,8 +409,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 
 				Draw.ArrowDown(this, "Signal" + CurrentBar, true, 0, High[0] + 2 * TickSize, Brushes.Red);
 				Draw.Text(this, "SignalLabel" + CurrentBar, 
-					string.Format("Short {0} | Score: {1:F1}", Instrument.FullName, score),
-					0, High[0] + 5 * TickSize, Brushes.Red);
+					string.Format("Short {0}", GetSignalGrade(score)),
+					0, High[0] + 2 * TickSize, Brushes.Red);
 			}
 
 			currentTradeState = TradeState.Active;
@@ -492,6 +493,17 @@ namespace NinjaTrader.NinjaScript.Indicators
 			tp1 = tp2 = tp3 = 0;
 			trailingStop = 0;
 			entryBar = -1;
+		}
+
+		private string GetSignalGrade(double score)
+		{
+			if (score >= 8.0)
+				return "A+";
+			if (score >= 6.5)
+				return "A";
+			if (score >= 5.0)
+				return "B";
+			return "C";
 		}
 
 		#endregion
