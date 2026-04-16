@@ -51,6 +51,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 		private SMA atrSma42;
 		private SMA volumeSMA;
 		private SimpleFont signalFont;
+		private double cumulativePV;
+		private double cumulativeVolume;
 
 		// HTF indicators
 		private EMA htfEmaFast;
@@ -188,11 +190,22 @@ namespace NinjaTrader.NinjaScript.Indicators
 			double atrSmaVal	= atrSma42[0];
 			double volSMA		= volumeSMA[0];
 			double close		= Close[0];
+			double hlc3			= (High[0] + Low[0] + Close[0]) / 3.0;
 
-			// VWAP: NinjaTrader doesn't have a simple VWAP for all instruments.
-			// Using typical price as fallback. Users can add VWAP indicator separately
-			// and reference it, or we use the VWAP() indicator if available.
-			double vwap = (High[0] + Low[0] + Close[0]) / 3.0;
+			// Session VWAP approximation: cumulative(hlc3 * volume) / cumulative(volume)
+			// Reset each trading session, which is closer to TradingView's ta.vwap behavior than plain hlc3.
+			bool hasVol = Volume[0] > 0;
+			if (Bars.IsFirstBarOfSession)
+			{
+				cumulativePV = 0;
+				cumulativeVolume = 0;
+			}
+			if (hasVol)
+			{
+				cumulativePV += hlc3 * Volume[0];
+				cumulativeVolume += Volume[0];
+			}
+			double vwap = cumulativeVolume > 0 ? cumulativePV / cumulativeVolume : hlc3;
 
 			// --- 10-Factor Confluence Scoring ---
 			double bullScore = 0;
@@ -219,11 +232,19 @@ namespace NinjaTrader.NinjaScript.Indicators
 			if (macdVal < macdSignal) bearScore += 1.0;
 
 			// Factor 6: Close vs VWAP
-			if (close > vwap) bullScore += 1.0;
-			if (close < vwap) bearScore += 1.0;
+			// If no volume data is available, auto-pass to mirror TV behavior on volume-less instruments.
+			if (hasVol && cumulativeVolume > 0)
+			{
+				if (close > vwap) bullScore += 1.0;
+				if (close < vwap) bearScore += 1.0;
+			}
+			else
+			{
+				bullScore += 1.0;
+				bearScore += 1.0;
+			}
 
 			// Factor 7: Volume confirmation
-			bool hasVol = Volume[0] > 0;
 			if (hasVol && volSMA > 0 && Volume[0] > volSMA * 1.2)
 			{
 				bullScore += 1.0;
