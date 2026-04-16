@@ -21,6 +21,11 @@ using NinjaTrader.Core.FloatingPoint;
 using NinjaTrader.NinjaScript.DrawingTools;
 #endregion
 
+namespace NinjaTrader.NinjaScript
+{
+	public enum PrecisionSniperPresetType { Default, Conservative, Aggressive, Scalping }
+}
+
 namespace NinjaTrader.NinjaScript.Indicators
 {
 	/// <summary>
@@ -41,9 +46,9 @@ namespace NinjaTrader.NinjaScript.Indicators
 		private RSI rsi;
 		private MACD macd;
 		private ADX adx;
-		private MINUS_DI minusDI;
-		private PLUS_DI plusDI;
+		private DMI dmi;
 		private ATR atr;
+		private SMA atrSma42;
 		private SMA volumeSMA;
 
 		// HTF indicators
@@ -68,15 +73,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 		private double recentSwingHigh = 0;
 		private double recentSwingLow = 0;
 
-		// Volatility regime
-		private double atrSMA42 = 0;
-		private double atrRunningSum = 0;
-
 		private enum TradeDirection { None, Long, Short }
-
-		// Brush cache
-		private Brush bullRibbonBrush;
-		private Brush bearRibbonBrush;
 
 		#endregion
 
@@ -126,7 +123,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 				HtfValue			= 0; // 0 = disabled
 
 				// Preset
-				Preset				= PresetType.Default;
+				Preset				= PrecisionSniperPresetType.Default;
 
 				// Visual
 				ShowRibbon			= true;
@@ -152,15 +149,10 @@ namespace NinjaTrader.NinjaScript.Indicators
 				rsi			= RSI(Close, RsiLength, 3);
 				macd		= MACD(Close, MacdFast, MacdSlow, MacdSmooth);
 				adx			= ADX(AdxPeriod);
-				minusDI		= MINUS_DI(AdxPeriod);
-				plusDI		= PLUS_DI(AdxPeriod);
+				dmi			= DMI(AdxPeriod);
 				atr			= ATR(AtrPeriod);
+				atrSma42	= SMA(atr, 42);
 				volumeSMA	= SMA(Volume, 20);
-
-				bullRibbonBrush	= new SolidColorBrush(Color.FromArgb(40, 0, 200, 0));
-				bearRibbonBrush	= new SolidColorBrush(Color.FromArgb(40, 200, 0, 0));
-				bullRibbonBrush.Freeze();
-				bearRibbonBrush.Freeze();
 			}
 		}
 
@@ -182,12 +174,12 @@ namespace NinjaTrader.NinjaScript.Indicators
 			double emaTrendVal	= emaTrend[0];
 			double rsiVal		= rsi[0];
 			double macdVal		= macd[0];
-			double macdSignal	= macd.Signal[0];
+			double macdSignal	= macd.Avg[0];
 			double macdHist		= macd.Diff[0];
 			double adxVal		= adx[0];
-			double plusDIVal	= plusDI[0];
-			double minusDIVal	= minusDI[0];
+			double dmiVal		= dmi[0];
 			double atrVal		= atr[0];
+			double atrSmaVal	= atrSma42[0];
 			double volSMA		= volumeSMA[0];
 			double close		= Close[0];
 
@@ -239,8 +231,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 			}
 
 			// Factor 8: ADX trending + DI alignment
-			if (adxVal > 20 && plusDIVal > minusDIVal) bullScore += 1.0;
-			if (adxVal > 20 && minusDIVal > plusDIVal) bearScore += 1.0;
+			if (adxVal > 20 && dmiVal > 0) bullScore += 1.0;
+			if (adxVal > 20 && dmiVal < 0) bearScore += 1.0;
 
 			// Factor 9: HTF EMA bias (1.5x weight)
 			if (HtfValue > 0 && BarsArray.Length >= 2)
@@ -282,17 +274,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 			}
 
 			// --- Volatility Regime ---
-			if (CurrentBar >= 42)
-			{
-				atrRunningSum += atrVal - atr[Math.Min(CurrentBar, 42)];
-				atrSMA42 = atrRunningSum / 42.0;
-			}
-			else
-			{
-				atrRunningSum += atrVal;
-				atrSMA42 = atrRunningSum / (CurrentBar + 1);
-			}
-			double volRatio = atrVal / (atrSMA42 > 0 ? atrSMA42 : atrVal);
+			double baselineAtr = atrSmaVal > 0 ? atrSmaVal : atrVal;
+			double volRatio = atrVal / baselineAtr;
 			string volRegime = volRatio > 1.3 ? "High" : volRatio < 0.7 ? "Low" : "Normal";
 
 			// --- Trade Monitoring ---
@@ -304,41 +287,36 @@ namespace NinjaTrader.NinjaScript.Indicators
 			// --- Visual: EMA Ribbon ---
 			if (ShowRibbon)
 			{
-				if (emaFastVal > emaSlowVal)
-					Draw.Region(this, "Ribbon" + CurrentBar, 0, emaFastVal, emaSlowVal, bullRibbonBrush, bullRibbonBrush);
-				else
-					Draw.Region(this, "Ribbon" + CurrentBar, 0, emaSlowVal, emaFastVal, bearRibbonBrush, bearRibbonBrush);
-
-				Draw.Line(this, "EmaTrend" + CurrentBar, 0, emaTrendVal, 0, emaTrendVal, 
-					DashStyleHelper.Dot, Brushes.Gray, 1);
+				Brush ribbonBrush = emaFastVal > emaSlowVal ? Brushes.LimeGreen : Brushes.Red;
+				Draw.Line(this, "EmaFast" + CurrentBar, false, 0, emaFastVal, -1, emaFastVal, ribbonBrush, DashStyleHelper.Solid, 2);
+				Draw.Line(this, "EmaSlow" + CurrentBar, false, 0, emaSlowVal, -1, emaSlowVal, ribbonBrush, DashStyleHelper.Dash, 1);
+				Draw.Line(this, "EmaTrend" + CurrentBar, false, 0, emaTrendVal, -1, emaTrendVal, Brushes.Gray, DashStyleHelper.Dot, 1);
 			}
 
 			// --- Visual: TP/SL Lines ---
 			if (ShowTPSLLines && currentTradeState != TradeState.None && currentTradeState != TradeState.SLHit)
 			{
-				Draw.Line(this, "Entry", 0, entryPrice, 0, entryPrice, DashStyleHelper.Solid, Brushes.DodgerBlue, 1);
-				Draw.Line(this, "SL", 0, stopLoss, 0, stopLoss, DashStyleHelper.Solid, Brushes.Red, 1);
-				Draw.Line(this, "TP1", 0, tp1, 0, tp1, DashStyleHelper.Dash, Brushes.LimeGreen, 1);
-				Draw.Line(this, "TP2", 0, tp2, 0, tp2, DashStyleHelper.Dash, Brushes.LimeGreen, 1);
-				Draw.Line(this, "TP3", 0, tp3, 0, tp3, DashStyleHelper.Dash, Brushes.LimeGreen, 1);
+				Draw.Line(this, "Entry", false, 0, entryPrice, -1, entryPrice, Brushes.DodgerBlue, DashStyleHelper.Solid, 1);
+				Draw.Line(this, "SL", false, 0, stopLoss, -1, stopLoss, Brushes.Red, DashStyleHelper.Solid, 1);
+				Draw.Line(this, "TP1", false, 0, tp1, -1, tp1, Brushes.LimeGreen, DashStyleHelper.Dash, 1);
+				Draw.Line(this, "TP2", false, 0, tp2, -1, tp2, Brushes.LimeGreen, DashStyleHelper.Dash, 1);
+				Draw.Line(this, "TP3", false, 0, tp3, -1, tp3, Brushes.LimeGreen, DashStyleHelper.Dash, 1);
 			}
 
 			// --- Visual: Trailing Stop Line ---
 			if (ShowTrailingStop && (currentTradeState == TradeState.TP1Hit 
 				|| currentTradeState == TradeState.TP2Hit || currentTradeState == TradeState.TP3Hit))
 			{
-				Draw.Line(this, "Trail", 0, trailingStop, 0, trailingStop, DashStyleHelper.Dot, Brushes.Orange, 2);
+				Draw.Line(this, "Trail", false, 0, trailingStop, -1, trailingStop, Brushes.Orange, DashStyleHelper.Dot, 2);
 			}
 
 			// --- Visual: Background Tint on Signal ---
 			if (ShowBackgroundTint)
 			{
 				if (bullSignal)
-					Draw.Rectangle(this, "BG" + CurrentBar, 0, High[0] + atrVal, Low[0] - atrVal, 
-						new SolidColorBrush(Color.FromArgb(30, 0, 255, 0)));
+					Draw.Rectangle(this, "BG" + CurrentBar, false, 0, High[0] + atrVal, -1, Low[0] - atrVal, Brushes.Transparent, Brushes.LimeGreen, 20);
 				else if (bearSignal)
-					Draw.Rectangle(this, "BG" + CurrentBar, 0, High[0] + atrVal, Low[0] - atrVal, 
-						new SolidColorBrush(Color.FromArgb(30, 255, 0, 0)));
+					Draw.Rectangle(this, "BG" + CurrentBar, false, 0, High[0] + atrVal, -1, Low[0] - atrVal, Brushes.Transparent, Brushes.Red, 20);
 			}
 
 			// --- Dashboard ---
@@ -555,6 +533,9 @@ namespace NinjaTrader.NinjaScript.Indicators
 
 			try
 			{
+				if (CurrentBars.Length < 2 || CurrentBars[1] < Math.Max(EmaFastPeriod, EmaSlowPeriod) + 1)
+					return 0;
+
 				if (htfEmaFast == null || htfEmaSlow == null)
 				{
 					htfEmaFast = EMA(BarsArray[1], EmaFastPeriod);
@@ -583,14 +564,14 @@ namespace NinjaTrader.NinjaScript.Indicators
 		{
 			switch (Preset)
 			{
-				case PresetType.Conservative:
+				case PrecisionSniperPresetType.Conservative:
 					MinConfluenceScore = 7;
 					SlAtrMultiplier = 2.0;
 					break;
-				case PresetType.Aggressive:
+				case PrecisionSniperPresetType.Aggressive:
 					MinConfluenceScore = 3;
 					break;
-				case PresetType.Scalping:
+				case PrecisionSniperPresetType.Scalping:
 					MinConfluenceScore = 4;
 					SlAtrMultiplier = 1.0;
 					EmaFastPeriod = 5;
@@ -600,7 +581,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 					Tp2RR = 1.5;
 					Tp3RR = 2.5;
 					break;
-				case PresetType.Default:
+				case PrecisionSniperPresetType.Default:
 				default:
 					break;
 			}
@@ -675,9 +656,11 @@ namespace NinjaTrader.NinjaScript.Indicators
 		[Display(Name = "TP3 R:R", Description = "Risk:Reward ratio for TP3", Order = 4, GroupName = "Risk Management")]
 		public double Tp3RR { get; set; }
 
+		[NinjaScriptProperty]
 		[Display(Name = "Trailing Stop Enabled", Description = "Ratchet SL to BE after TP1, TP1 after TP2, etc.", Order = 5, GroupName = "Risk Management")]
 		public bool TrailingStopEnabled { get; set; }
 
+		[NinjaScriptProperty]
 		[Display(Name = "Structure-Based SL", Description = "Use swing low/high as SL anchor instead of pure ATR", Order = 6, GroupName = "Risk Management")]
 		public bool StructureBasedSL { get; set; }
 
@@ -686,6 +669,8 @@ namespace NinjaTrader.NinjaScript.Indicators
 		[Display(Name = "Swing Lookback", Description = "Bars to look back for structure SL", Order = 7, GroupName = "Risk Management")]
 		public int SwingLookback { get; set; }
 
+		[NinjaScriptProperty]
+		[Range(0.1, double.MaxValue)]
 		[Display(Name = "SL Min ATR Distance", Description = "Minimum SL distance as fraction of ATR", Order = 8, GroupName = "Risk Management")]
 		public double SlMinATRDistance { get; set; }
 
@@ -703,27 +688,87 @@ namespace NinjaTrader.NinjaScript.Indicators
 		[Display(Name = "HTF Value", Description = "Higher timeframe value (0 = disabled)", Order = 2, GroupName = "HTF Filter")]
 		public int HtfValue { get; set; }
 
-		public enum PresetType { Default, Conservative, Aggressive, Scalping }
-
 		[NinjaScriptProperty]
 		[Display(Name = "Preset", Description = "Parameter preset", Order = 1, GroupName = "Preset")]
-		public PresetType Preset { get; set; }
+		public PrecisionSniperPresetType Preset { get; set; }
 
+		[NinjaScriptProperty]
 		[Display(Name = "Show EMA Ribbon", Description = "Draw EMA ribbon fill", Order = 1, GroupName = "Visual")]
 		public bool ShowRibbon { get; set; }
 
+		[NinjaScriptProperty]
 		[Display(Name = "Show TP/SL Lines", Description = "Draw entry, SL, and TP lines", Order = 2, GroupName = "Visual")]
 		public bool ShowTPSLLines { get; set; }
 
+		[NinjaScriptProperty]
 		[Display(Name = "Show Trailing Stop", Description = "Draw trailing stop line", Order = 3, GroupName = "Visual")]
 		public bool ShowTrailingStop { get; set; }
 
+		[NinjaScriptProperty]
 		[Display(Name = "Show Dashboard", Description = "Show on-chart dashboard text", Order = 4, GroupName = "Visual")]
 		public bool ShowDashboard { get; set; }
 
+		[NinjaScriptProperty]
 		[Display(Name = "Show Background Tint", Description = "Tint background on signals", Order = 5, GroupName = "Visual")]
 		public bool ShowBackgroundTint { get; set; }
 
 		#endregion
 	}
 }
+
+#region NinjaScript generated code. Neither change nor remove.
+
+namespace NinjaTrader.NinjaScript.Indicators
+{
+	public partial class Indicator : NinjaTrader.Gui.NinjaScript.IndicatorRenderBase
+	{
+		private PrecisionSniper[] cachePrecisionSniper;
+		public PrecisionSniper PrecisionSniper(int emaFastPeriod, int emaSlowPeriod, int emaTrendPeriod, int minConfluenceScore, int rsiLength, int macdFast, int macdSlow, int macdSmooth, int adxPeriod, double slAtrMultiplier, double tp1RR, double tp2RR, double tp3RR, bool trailingStopEnabled, bool structureBasedSL, int swingLookback, double slMinATRDistance, int atrPeriod, BarsPeriodType htfBarsPeriod, int htfValue, PrecisionSniperPresetType preset, bool showRibbon, bool showTPSLLines, bool showTrailingStop, bool showDashboard, bool showBackgroundTint)
+		{
+			return PrecisionSniper(Input, emaFastPeriod, emaSlowPeriod, emaTrendPeriod, minConfluenceScore, rsiLength, macdFast, macdSlow, macdSmooth, adxPeriod, slAtrMultiplier, tp1RR, tp2RR, tp3RR, trailingStopEnabled, structureBasedSL, swingLookback, slMinATRDistance, atrPeriod, htfBarsPeriod, htfValue, preset, showRibbon, showTPSLLines, showTrailingStop, showDashboard, showBackgroundTint);
+		}
+
+		public PrecisionSniper PrecisionSniper(ISeries<double> input, int emaFastPeriod, int emaSlowPeriod, int emaTrendPeriod, int minConfluenceScore, int rsiLength, int macdFast, int macdSlow, int macdSmooth, int adxPeriod, double slAtrMultiplier, double tp1RR, double tp2RR, double tp3RR, bool trailingStopEnabled, bool structureBasedSL, int swingLookback, double slMinATRDistance, int atrPeriod, BarsPeriodType htfBarsPeriod, int htfValue, PrecisionSniperPresetType preset, bool showRibbon, bool showTPSLLines, bool showTrailingStop, bool showDashboard, bool showBackgroundTint)
+		{
+			if (cachePrecisionSniper != null)
+				for (int idx = 0; idx < cachePrecisionSniper.Length; idx++)
+					if (cachePrecisionSniper[idx] != null && cachePrecisionSniper[idx].EmaFastPeriod == emaFastPeriod && cachePrecisionSniper[idx].EmaSlowPeriod == emaSlowPeriod && cachePrecisionSniper[idx].EmaTrendPeriod == emaTrendPeriod && cachePrecisionSniper[idx].MinConfluenceScore == minConfluenceScore && cachePrecisionSniper[idx].RsiLength == rsiLength && cachePrecisionSniper[idx].MacdFast == macdFast && cachePrecisionSniper[idx].MacdSlow == macdSlow && cachePrecisionSniper[idx].MacdSmooth == macdSmooth && cachePrecisionSniper[idx].AdxPeriod == adxPeriod && cachePrecisionSniper[idx].SlAtrMultiplier == slAtrMultiplier && cachePrecisionSniper[idx].Tp1RR == tp1RR && cachePrecisionSniper[idx].Tp2RR == tp2RR && cachePrecisionSniper[idx].Tp3RR == tp3RR && cachePrecisionSniper[idx].TrailingStopEnabled == trailingStopEnabled && cachePrecisionSniper[idx].StructureBasedSL == structureBasedSL && cachePrecisionSniper[idx].SwingLookback == swingLookback && cachePrecisionSniper[idx].SlMinATRDistance == slMinATRDistance && cachePrecisionSniper[idx].AtrPeriod == atrPeriod && cachePrecisionSniper[idx].HtfBarsPeriod == htfBarsPeriod && cachePrecisionSniper[idx].HtfValue == htfValue && cachePrecisionSniper[idx].Preset == preset && cachePrecisionSniper[idx].ShowRibbon == showRibbon && cachePrecisionSniper[idx].ShowTPSLLines == showTPSLLines && cachePrecisionSniper[idx].ShowTrailingStop == showTrailingStop && cachePrecisionSniper[idx].ShowDashboard == showDashboard && cachePrecisionSniper[idx].ShowBackgroundTint == showBackgroundTint && cachePrecisionSniper[idx].EqualsInput(input))
+						return cachePrecisionSniper[idx];
+			return CacheIndicator<PrecisionSniper>(new PrecisionSniper(){ EmaFastPeriod = emaFastPeriod, EmaSlowPeriod = emaSlowPeriod, EmaTrendPeriod = emaTrendPeriod, MinConfluenceScore = minConfluenceScore, RsiLength = rsiLength, MacdFast = macdFast, MacdSlow = macdSlow, MacdSmooth = macdSmooth, AdxPeriod = adxPeriod, SlAtrMultiplier = slAtrMultiplier, Tp1RR = tp1RR, Tp2RR = tp2RR, Tp3RR = tp3RR, TrailingStopEnabled = trailingStopEnabled, StructureBasedSL = structureBasedSL, SwingLookback = swingLookback, SlMinATRDistance = slMinATRDistance, AtrPeriod = atrPeriod, HtfBarsPeriod = htfBarsPeriod, HtfValue = htfValue, Preset = preset, ShowRibbon = showRibbon, ShowTPSLLines = showTPSLLines, ShowTrailingStop = showTrailingStop, ShowDashboard = showDashboard, ShowBackgroundTint = showBackgroundTint }, input, ref cachePrecisionSniper);
+		}
+	}
+}
+
+namespace NinjaTrader.NinjaScript.MarketAnalyzerColumns
+{
+	public partial class MarketAnalyzerColumn : MarketAnalyzerColumnBase
+	{
+		public Indicators.PrecisionSniper PrecisionSniper(int emaFastPeriod, int emaSlowPeriod, int emaTrendPeriod, int minConfluenceScore, int rsiLength, int macdFast, int macdSlow, int macdSmooth, int adxPeriod, double slAtrMultiplier, double tp1RR, double tp2RR, double tp3RR, bool trailingStopEnabled, bool structureBasedSL, int swingLookback, double slMinATRDistance, int atrPeriod, BarsPeriodType htfBarsPeriod, int htfValue, PrecisionSniperPresetType preset, bool showRibbon, bool showTPSLLines, bool showTrailingStop, bool showDashboard, bool showBackgroundTint)
+		{
+			return indicator.PrecisionSniper(Input, emaFastPeriod, emaSlowPeriod, emaTrendPeriod, minConfluenceScore, rsiLength, macdFast, macdSlow, macdSmooth, adxPeriod, slAtrMultiplier, tp1RR, tp2RR, tp3RR, trailingStopEnabled, structureBasedSL, swingLookback, slMinATRDistance, atrPeriod, htfBarsPeriod, htfValue, preset, showRibbon, showTPSLLines, showTrailingStop, showDashboard, showBackgroundTint);
+		}
+
+		public Indicators.PrecisionSniper PrecisionSniper(ISeries<double> input , int emaFastPeriod, int emaSlowPeriod, int emaTrendPeriod, int minConfluenceScore, int rsiLength, int macdFast, int macdSlow, int macdSmooth, int adxPeriod, double slAtrMultiplier, double tp1RR, double tp2RR, double tp3RR, bool trailingStopEnabled, bool structureBasedSL, int swingLookback, double slMinATRDistance, int atrPeriod, BarsPeriodType htfBarsPeriod, int htfValue, PrecisionSniperPresetType preset, bool showRibbon, bool showTPSLLines, bool showTrailingStop, bool showDashboard, bool showBackgroundTint)
+		{
+			return indicator.PrecisionSniper(input, emaFastPeriod, emaSlowPeriod, emaTrendPeriod, minConfluenceScore, rsiLength, macdFast, macdSlow, macdSmooth, adxPeriod, slAtrMultiplier, tp1RR, tp2RR, tp3RR, trailingStopEnabled, structureBasedSL, swingLookback, slMinATRDistance, atrPeriod, htfBarsPeriod, htfValue, preset, showRibbon, showTPSLLines, showTrailingStop, showDashboard, showBackgroundTint);
+		}
+	}
+}
+
+namespace NinjaTrader.NinjaScript.Strategies
+{
+	public partial class Strategy : NinjaTrader.Gui.NinjaScript.StrategyRenderBase
+	{
+		public Indicators.PrecisionSniper PrecisionSniper(int emaFastPeriod, int emaSlowPeriod, int emaTrendPeriod, int minConfluenceScore, int rsiLength, int macdFast, int macdSlow, int macdSmooth, int adxPeriod, double slAtrMultiplier, double tp1RR, double tp2RR, double tp3RR, bool trailingStopEnabled, bool structureBasedSL, int swingLookback, double slMinATRDistance, int atrPeriod, BarsPeriodType htfBarsPeriod, int htfValue, PrecisionSniperPresetType preset, bool showRibbon, bool showTPSLLines, bool showTrailingStop, bool showDashboard, bool showBackgroundTint)
+		{
+			return indicator.PrecisionSniper(Input, emaFastPeriod, emaSlowPeriod, emaTrendPeriod, minConfluenceScore, rsiLength, macdFast, macdSlow, macdSmooth, adxPeriod, slAtrMultiplier, tp1RR, tp2RR, tp3RR, trailingStopEnabled, structureBasedSL, swingLookback, slMinATRDistance, atrPeriod, htfBarsPeriod, htfValue, preset, showRibbon, showTPSLLines, showTrailingStop, showDashboard, showBackgroundTint);
+		}
+
+		public Indicators.PrecisionSniper PrecisionSniper(ISeries<double> input , int emaFastPeriod, int emaSlowPeriod, int emaTrendPeriod, int minConfluenceScore, int rsiLength, int macdFast, int macdSlow, int macdSmooth, int adxPeriod, double slAtrMultiplier, double tp1RR, double tp2RR, double tp3RR, bool trailingStopEnabled, bool structureBasedSL, int swingLookback, double slMinATRDistance, int atrPeriod, BarsPeriodType htfBarsPeriod, int htfValue, PrecisionSniperPresetType preset, bool showRibbon, bool showTPSLLines, bool showTrailingStop, bool showDashboard, bool showBackgroundTint)
+		{
+			return indicator.PrecisionSniper(input, emaFastPeriod, emaSlowPeriod, emaTrendPeriod, minConfluenceScore, rsiLength, macdFast, macdSlow, macdSmooth, adxPeriod, slAtrMultiplier, tp1RR, tp2RR, tp3RR, trailingStopEnabled, structureBasedSL, swingLookback, slMinATRDistance, atrPeriod, htfBarsPeriod, htfValue, preset, showRibbon, showTPSLLines, showTrailingStop, showDashboard, showBackgroundTint);
+		}
+	}
+}
+
+#endregion
