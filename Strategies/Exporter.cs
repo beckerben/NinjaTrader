@@ -103,7 +103,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"mama_default", "mama_fama",
 					"trix", "trix_signal",
 					"tsf", "tsi",
-					"vortex_viplus", "vortex_viminus"
+					"vortex_viplus", "vortex_viminus",
+					"ichimoku_tenkan", "ichimoku_kijun", "ichimoku_spana", "ichimoku_spanb",
+					"swing_high", "swing_low"
 				});
 
 			if (Export_Momentum)
@@ -132,7 +134,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"kama",
 					"keltner_lower", "keltner_mean", "keltner_upper",
 					"parabolic_sar",
-					"relativevigorindex", "rsquared", "stddev"
+					"relativevigorindex", "rsquared", "stddev",
+					"regchannel_upper", "regchannel_middle", "regchannel_lower"
 				});
 
 			if (Export_Volume)
@@ -140,7 +143,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"adl", "obv",
 					"chaikinmoneyflow", "chaikinoscillator",
 					"volma", "volume_oscillator", "vroc",
-					"buysell_buypressure", "buysell_sellpressure"
+					"buysell_buypressure", "buysell_sellpressure",
+					"volumeupdown_up", "volumeupdown_down"
 				});
 
 			if (Export_Pivots)
@@ -186,6 +190,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"alligator_jaw", "alligator_teeth", "alligator_lips",
 					"highestlowestlines_high", "highestlowestlines_mid", "highestlowestlines_low"
 				});
+
+			if (Export_MovingAverages)
+			{
+				int[] periods = { 9, 14, 21, 50, 100, 150, 200 };
+				string[] types = { "ema", "sma", "wma", "hma", "dema", "tema", "t3", "tma", "vma", "vwma", "zlema" };
+				foreach (string t in types)
+					foreach (int p in periods)
+						cols.Add($"{t}_{p}");
+			}
 
 			return cols;
 		}
@@ -248,6 +261,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 				cols.Add(V(() => Math.Round(TSI(3, 14)[0], 0)));
 				cols.Add(V(() => Math.Round(Vortex(14).VIPlus[0], 1)));
 				cols.Add(V(() => Math.Round(Vortex(14).VIMinus[0], 1)));
+				var ich = IchimokuCloud(9, 26, 52, -26, 26);
+				cols.Add(ATRNorm(() => ich.Values[0][26]));
+				cols.Add(ATRNorm(() => ich.Values[1][26]));
+				cols.Add(ATRNorm(() => ich.Values[2][0]));
+				cols.Add(ATRNorm(() => ich.Values[3][0]));
+				var swg = Swing(5);
+				cols.Add(swg.SwingHigh[0] > 0 ? ATRNorm(() => swg.SwingHigh[0]) : "");
+				cols.Add(swg.SwingLow[0]  > 0 ? ATRNorm(() => swg.SwingLow[0])  : "");
 			}
 
 			if (Export_Momentum)
@@ -302,6 +323,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 				cols.Add(V(() => Math.Round(RelativeVigorIndex(10)[0], 2)));
 				cols.Add(V(() => Math.Round(RSquared(8)[0], 2)));
 				cols.Add(V(() => Math.Round(StdDev(14)[0], 1)));
+				var rc = RegressionChannel(35, 2);
+				cols.Add(ATRNorm(() => rc.Upper[0]));
+				cols.Add(ATRNorm(() => rc.Middle[0]));
+				cols.Add(ATRNorm(() => rc.Lower[0]));
 			}
 
 			if (Export_Volume)
@@ -315,6 +340,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 				cols.Add(V(() => Math.Round(VROC(14, 3)[0], 0)));
 				cols.Add(V(() => Math.Round(BuySellPressure().BuyPressure[0], 0)));
 				cols.Add(V(() => Math.Round(BuySellPressure().SellPressure[0], 0)));
+				var vud = VolumeUpDown();
+				cols.Add(V(() => vud.UpVolume[0]));
+				cols.Add(V(() => vud.DownVolume[0]));
 			}
 
 			if (Export_Pivots)
@@ -419,6 +447,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 				cols.Add(ATRNorm(() => HighestLowestLines(21).LowestLow[0]));
 			}
 
+			if (Export_MovingAverages)
+			{
+				int[] periods = { 9, 14, 21, 50, 100, 150, 200 };
+				foreach (int p in periods) cols.Add(ATRNorm(() => EMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => SMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => WMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => HMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => DEMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => TEMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => T3(p, 3, 0.7)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => TMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => VMA(p, p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => VWMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => ZLEMA(p)[0]));
+			}
+
 			return cols;
 		}
 
@@ -464,6 +508,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Export_OrderFlow        = true;
 				Export_FVG              = true;
 				Export_Custom           = true;
+				Export_MovingAverages   = true;
 			}
 			else if (State == State.Terminated)
 			{
@@ -544,7 +589,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public bool Export_OHLCV_Normalized { get; set; }
 
 		[NinjaScriptProperty]
-		[Display(Name = "Trend Indicators", Description = "ADX, ADXR, Aroon, DM, DMI, LinReg family, MACD, MAMA, TRIX, TSF, TSI, Vortex.", Order = 3, GroupName = "Export Groups")]
+		[Display(Name = "Trend Indicators", Description = "ADX, ADXR, Aroon, DM, DMI, LinReg family, MACD, MAMA, TRIX, TSF, TSI, Vortex, Ichimoku Cloud (Tenkan/Kijun/SpanA/SpanB), Swing (High/Low).", Order = 3, GroupName = "Export Groups")]
 		public bool Export_Trend { get; set; }
 
 		[NinjaScriptProperty]
@@ -552,11 +597,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public bool Export_Momentum { get; set; }
 
 		[NinjaScriptProperty]
-		[Display(Name = "Volatility Indicators", Description = "ATR, APZ, Bollinger, BOP, ChaikinVolatility, DonchianChannel, DoubleStochastics, FisherTransform, KAMA, Keltner, ParabolicSAR, RSquared, RelativeVigor, StdDev.", Order = 5, GroupName = "Export Groups")]
+		[Display(Name = "Volatility Indicators", Description = "ATR, APZ, Bollinger, BOP, ChaikinVolatility, DonchianChannel, DoubleStochastics, FisherTransform, KAMA, Keltner, ParabolicSAR, RSquared, RelativeVigor, StdDev, RegressionChannel (Upper/Middle/Lower).", Order = 5, GroupName = "Export Groups")]
 		public bool Export_Volatility { get; set; }
 
 		[NinjaScriptProperty]
-		[Display(Name = "Volume Indicators", Description = "ADL, OBV, ChaikinMoneyFlow, ChaikinOscillator, VOLMA, VolumeOscillator, VROC, BuySellPressure.", Order = 6, GroupName = "Export Groups")]
+		[Display(Name = "Volume Indicators", Description = "ADL, OBV, ChaikinMoneyFlow, ChaikinOscillator, VOLMA, VolumeOscillator, VROC, BuySellPressure, VolumeUpDown (Up/Down).", Order = 6, GroupName = "Export Groups")]
 		public bool Export_Volume { get; set; }
 
 		[NinjaScriptProperty]
@@ -574,6 +619,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 		[NinjaScriptProperty]
 		[Display(Name = "Custom / Other", Description = "WoodiesCCI, Wiseman Awesome Oscillator, Alligator (Jaw/Teeth/Lips), HighestLowestLines.", Order = 10, GroupName = "Export Groups")]
 		public bool Export_Custom { get; set; }
+
+		[NinjaScriptProperty]
+		[Display(Name = "Moving Averages", Description = "EMA, SMA, WMA, HMA, DEMA, TEMA, T3, TMA, VMA, VWMA, ZLEMA — each at periods 9, 14, 21, 50, 100, 150, 200 (77 columns, ATR-normalized).", Order = 11, GroupName = "Export Groups")]
+		public bool Export_MovingAverages { get; set; }
 
 		#endregion
 	}
