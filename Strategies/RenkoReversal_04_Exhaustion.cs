@@ -85,7 +85,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			{
 				// Instantiate the probability indicator with exhaustion filtering enabled
 				_probIndicator = RenkoReversalProbability(ReversalThreshold, LookbackBricks,
-					ExhaustionThreshold, EMAPeriod, RSIPeriod, VolumeLookback,
+					EMAPeriod, RSIPeriod, VolumeLookback,
 					VolumeHighRatio, VolumeLowRatio, RSIOverbought, RSIOversold, MinHistory);
 
 				// Show the indicator on the chart
