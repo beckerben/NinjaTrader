@@ -96,6 +96,12 @@ Indicators that measure trend direction, strength, and momentum of the primary t
 | `tsi` | int | `TSI(3,14)` | True Strength Index |
 | `vortex_viplus` | double | `Vortex(14).VIPlus` | Vortex +VI (bullish movement) |
 | `vortex_viminus` | double | `Vortex(14).VIMinus` | Vortex −VI (bearish movement) |
+| `ichimoku_tenkan` | double | `(MAX(High,9) + MIN(Low,9)) / 2 − close) / ATR(14)` | Ichimoku Tenkan-sen (9-period conversion line), ATR-normalized |
+| `ichimoku_kijun` | double | `(MAX(High,26) + MIN(Low,26)) / 2 − close) / ATR(14)` | Ichimoku Kijun-sen (26-period base line), ATR-normalized |
+| `ichimoku_spana` | double | `((tenkan + kijun) / 2 − close) / ATR(14)` | Ichimoku Senkou Span A (leading span A), ATR-normalized |
+| `ichimoku_spanb` | double | `(MAX(High,52) + MIN(Low,52)) / 2 − close) / ATR(14)` | Ichimoku Senkou Span B (leading span B), ATR-normalized |
+| `swing_high` | double | `(Swing(5).SwingHigh − close) / ATR(14)` | Most recent 5-bar swing high, ATR-normalized; empty if no swing high formed |
+| `swing_low` | double | `(Swing(5).SwingLow − close) / ATR(14)` | Most recent 5-bar swing low, ATR-normalized; empty if no swing low formed |
 
 ---
 
@@ -160,6 +166,9 @@ Indicators that measure price bands, ranges, and volatility levels. Price-level 
 | `relativevigorindex` | double | `RelativeVigorIndex(10)` | Relative Vigor Index |
 | `rsquared` | double | `RSquared(8)` | R² of the 8-bar linear regression; 1.0 = perfect trend |
 | `stddev` | double | `StdDev(14)` | Standard deviation of close over 14 bars (raw price units) |
+| `regchannel_upper` | double | `(RegressionChannel(35,2).Upper - close) / ATR(14)` | 35-bar regression channel upper band (2 std devs), ATR-normalized |
+| `regchannel_middle` | double | `(RegressionChannel(35,2).Middle - close) / ATR(14)` | 35-bar regression channel midline, ATR-normalized |
+| `regchannel_lower` | double | `(RegressionChannel(35,2).Lower - close) / ATR(14)` | 35-bar regression channel lower band (2 std devs), ATR-normalized |
 
 ---
 
@@ -178,6 +187,8 @@ Cumulative and flow-based volume measures.
 | `vroc` | int | `VROC(14,3)` | Volume Rate of Change |
 | `buysell_buypressure` | int | `BuySellPressure().BuyPressure` | Buy-side pressure |
 | `buysell_sellpressure` | int | `BuySellPressure().SellPressure` | Sell-side pressure |
+| `volumeupdown_up` | double | `VolumeUpDown().UpVolume` | Volume on up bars (close > open) |
+| `volumeupdown_down` | double | `VolumeUpDown().DownVolume` | Volume on down bars (close < open) |
 
 ---
 
@@ -281,6 +292,32 @@ print(f"Average bars to close: {sum(results) / len(results):.1f}")
 | `highestlowestlines_high` | double | `(HighestLowestLines(21).HighestHigh - close) / ATR(14)` | 21-bar highest high, ATR-normalized |
 | `highestlowestlines_mid` | double | `(HighestLowestLines(21).Midline - close) / ATR(14)` | Midpoint of 21-bar high/low range, ATR-normalized |
 | `highestlowestlines_low` | double | `(HighestLowestLines(21).LowestLow - close) / ATR(14)` | 21-bar lowest low, ATR-normalized |
+
+---
+
+### Moving Averages — `Export_MovingAverages`
+
+11 moving average types at 7 periods each (77 columns total). All values are **ATR-normalized**: `(MA - close) / ATR(14)`.
+
+Periods: **9, 14, 21, 50, 100, 150, 200**
+
+Column naming convention: `{type}_{period}` — e.g. `ema_9`, `sma_50`, `zlema_200`.
+
+| Type | Column prefix | Formula / Indicator | Notes |
+|---|---|---|---|
+| EMA | `ema` | `EMA(period)` | Exponential Moving Average |
+| SMA | `sma` | `SMA(period)` | Simple Moving Average |
+| WMA | `wma` | `WMA(period)` | Weighted Moving Average (linear weights) |
+| HMA | `hma` | `HMA(period)` | Hull Moving Average — reduced lag |
+| DEMA | `dema` | `DEMA(period)` | Double Exponential Moving Average |
+| TEMA | `tema` | `TEMA(period)` | Triple Exponential Moving Average |
+| T3 | `t3` | `T3(period, 3, 0.7)` | Tillson T3 — further lag-reduced EMA variant |
+| TMA | `tma` | `TMA(period)` | Triangular Moving Average (double-smoothed SMA) |
+| VMA | `vma` | `VMA(period, period)` | Variable Moving Average (volatility-adaptive) |
+| VWMA | `vwma` | `VWMA(period)` | Volume-Weighted Moving Average |
+| ZLEMA | `zlema` | `ZLEMA(period)` | Zero-Lag EMA |
+
+Columns are ordered: all periods for EMA first, then all periods for SMA, etc. — i.e. `ema_9, ema_14, ..., ema_200, sma_9, sma_14, ..., zlema_200`.
 
 ---
 
