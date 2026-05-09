@@ -71,6 +71,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 			return V(() => Math.Round((getPrice() - Close[0]) / ATR(14)[0], 4));
 		}
 
+		/// <summary>
+		/// ATRNorm variant for daily pivot levels. Returns empty string when the pivot
+		/// value is zero or negative, which happens when no prior session data has
+		/// been loaded yet (first trading day of a historical run).
+		/// </summary>
+		private string PivotNorm(double price)
+		{
+			return price > 0 ? V(() => Math.Round((price - Close[0]) / ATR(14)[0], 4)) : "";
+		}
+
 		private List<string> BuildHeaderColumns()
 		{
 			var cols = new List<string>();
@@ -261,11 +271,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 				cols.Add(V(() => Math.Round(TSI(3, 14)[0], 0)));
 				cols.Add(V(() => Math.Round(Vortex(14).VIPlus[0], 1)));
 				cols.Add(V(() => Math.Round(Vortex(14).VIMinus[0], 1)));
-				var ich = IchimokuCloud(9, 26, 52, -26, 26);
-				cols.Add(ATRNorm(() => ich.Values[0][26]));
-				cols.Add(ATRNorm(() => ich.Values[1][26]));
-				cols.Add(ATRNorm(() => ich.Values[2][0]));
-				cols.Add(ATRNorm(() => ich.Values[3][0]));
+				double ichiTenkan = (MAX(High, 9)[0]  + MIN(Low, 9)[0])  / 2.0;
+				double ichiKijun  = (MAX(High, 26)[0] + MIN(Low, 26)[0]) / 2.0;
+				double ichiSpanA  = (ichiTenkan + ichiKijun) / 2.0;
+				double ichiSpanB  = (MAX(High, 52)[0] + MIN(Low, 52)[0]) / 2.0;
+				cols.Add(ATRNorm(() => ichiTenkan));
+				cols.Add(ATRNorm(() => ichiKijun));
+				cols.Add(ATRNorm(() => ichiSpanA));
+				cols.Add(ATRNorm(() => ichiSpanB));
 				var swg = Swing(5);
 				cols.Add(swg.SwingHigh[0] > 0 ? ATRNorm(() => swg.SwingHigh[0]) : "");
 				cols.Add(swg.SwingLow[0]  > 0 ? ATRNorm(() => swg.SwingLow[0])  : "");
@@ -348,44 +361,45 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (Export_Pivots)
 			{
 				var cam = CamarillaPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20);
-				cols.Add(ATRNorm(() => cam.R1[0]));
-				cols.Add(ATRNorm(() => cam.R2[0]));
-				cols.Add(ATRNorm(() => cam.R3[0]));
-				cols.Add(ATRNorm(() => cam.R4[0]));
-				cols.Add(ATRNorm(() => cam.S1[0]));
-				cols.Add(ATRNorm(() => cam.S2[0]));
-				cols.Add(ATRNorm(() => cam.S3[0]));
-				cols.Add(ATRNorm(() => cam.S4[0]));
+				cols.Add(PivotNorm(cam.R1[0]));
+				cols.Add(PivotNorm(cam.R2[0]));
+				cols.Add(PivotNorm(cam.R3[0]));
+				cols.Add(PivotNorm(cam.R4[0]));
+				cols.Add(PivotNorm(cam.S1[0]));
+				cols.Add(PivotNorm(cam.S2[0]));
+				cols.Add(PivotNorm(cam.S3[0]));
+				cols.Add(PivotNorm(cam.S4[0]));
 				var fib = FibonacciPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20);
-				cols.Add(ATRNorm(() => fib.Pp[0]));
-				cols.Add(ATRNorm(() => fib.R1[0]));
-				cols.Add(ATRNorm(() => fib.R2[0]));
-				cols.Add(ATRNorm(() => fib.R3[0]));
-				cols.Add(ATRNorm(() => fib.S1[0]));
-				cols.Add(ATRNorm(() => fib.S2[0]));
-				cols.Add(ATRNorm(() => fib.S3[0]));
+				cols.Add(PivotNorm(fib.Pp[0]));
+				cols.Add(PivotNorm(fib.R1[0]));
+				cols.Add(PivotNorm(fib.R2[0]));
+				cols.Add(PivotNorm(fib.R3[0]));
+				cols.Add(PivotNorm(fib.S1[0]));
+				cols.Add(PivotNorm(fib.S2[0]));
+				cols.Add(PivotNorm(fib.S3[0]));
 				var piv = Pivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20);
-				cols.Add(ATRNorm(() => piv.Pp[0]));
-				cols.Add(ATRNorm(() => piv.R1[0]));
-				cols.Add(ATRNorm(() => piv.R2[0]));
-				cols.Add(ATRNorm(() => piv.R3[0]));
-				cols.Add(ATRNorm(() => piv.S1[0]));
-				cols.Add(ATRNorm(() => piv.S2[0]));
-				cols.Add(ATRNorm(() => piv.S3[0]));
+				cols.Add(PivotNorm(piv.Pp[0]));
+				cols.Add(PivotNorm(piv.R1[0]));
+				cols.Add(PivotNorm(piv.R2[0]));
+				cols.Add(PivotNorm(piv.R3[0]));
+				cols.Add(PivotNorm(piv.S1[0]));
+				cols.Add(PivotNorm(piv.S2[0]));
+				cols.Add(PivotNorm(piv.S3[0]));
 				var woo = WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData, 20);
-				cols.Add(ATRNorm(() => woo.PP[0]));
-				cols.Add(ATRNorm(() => woo.R1[0]));
-				cols.Add(ATRNorm(() => woo.R2[0]));
-				cols.Add(ATRNorm(() => woo.S1[0]));
-				cols.Add(ATRNorm(() => woo.S2[0]));
+				cols.Add(PivotNorm(woo.PP[0]));
+				cols.Add(PivotNorm(woo.R1[0]));
+				cols.Add(PivotNorm(woo.R2[0]));
+				cols.Add(PivotNorm(woo.S1[0]));
+				cols.Add(PivotNorm(woo.S2[0]));
 				var cdohlc = CurrentDayOHL();
-				cols.Add(ATRNorm(() => cdohlc.CurrentOpen[0]));
-				cols.Add(ATRNorm(() => cdohlc.CurrentLow[0]));
-				cols.Add(ATRNorm(() => cdohlc.CurrentHigh[0]));
-				cols.Add(ATRNorm(() => PriorDayOHLC().PriorOpen[0]));
-				cols.Add(ATRNorm(() => PriorDayOHLC().PriorHigh[0]));
-				cols.Add(ATRNorm(() => PriorDayOHLC().PriorLow[0]));
-				cols.Add(ATRNorm(() => PriorDayOHLC().PriorClose[0]));
+				cols.Add(PivotNorm(cdohlc.CurrentOpen[0]));
+				cols.Add(PivotNorm(cdohlc.CurrentLow[0]));
+				cols.Add(PivotNorm(cdohlc.CurrentHigh[0]));
+				var pd = PriorDayOHLC();
+				cols.Add(PivotNorm(pd.PriorOpen[0]));
+				cols.Add(PivotNorm(pd.PriorHigh[0]));
+				cols.Add(PivotNorm(pd.PriorLow[0]));
+				cols.Add(PivotNorm(pd.PriorClose[0]));
 			}
 
 			if (Export_OrderFlow)
@@ -490,7 +504,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				TraceOrders								= false;
 				RealtimeErrorHandling					= RealtimeErrorHandling.StopCancelClose;
 				StopTargetHandling						= StopTargetHandling.PerEntryExecution;
-				BarsRequiredToTrade						= 1;
+				BarsRequiredToTrade						= 250;
 				IsInstantiatedOnEachOptimizationIteration = true;
 				// Output
 				outputPath  = "C:\\Temp";
