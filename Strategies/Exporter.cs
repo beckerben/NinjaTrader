@@ -32,6 +32,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private bool   currentCloseHigher = false;
 		private bool   currentReversal   = false;
 		private OrderFlowCumulativeDelta cumulativeDelta;
+		private bool   writeFailed;
 
 		#endregion
 
@@ -44,6 +45,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 			int startMins = Start_Time.Hour * 60 + Start_Time.Minute;
 			int endMins   = End_Time.Hour   * 60 + End_Time.Minute;
 			return barMins >= startMins && barMins < endMins;
+		}
+
+		/// <summary>
+		/// Raw OHLCV and FVG only need the prior bar. Every other group pulls in
+		/// indicators with long lookbacks, so those runs keep BarsRequiredToTrade.
+		/// </summary>
+		private int MinimumBarIndex()
+		{
+			bool longLookback = Export_OHLCV_Normalized || Export_Trend || Export_Momentum
+				|| Export_Volatility || Export_Volume || Export_Pivots
+				|| Export_OrderFlow || Export_Custom || Export_MovingAverages;
+			return longLookback ? BarsRequiredToTrade : 1;
 		}
 
 		/// <summary>
@@ -530,35 +543,75 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			else if (State == State.Configure)
 			{
-				cumulativeDelta = OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk, CumulativeDeltaPeriod.Bar, 0);
+				// Only host the tick series when that group is actually exported.
+				// Constructing it unconditionally aborts an OHLCV-only run on charts
+				// that do not have tick replay.
+				if (Export_OrderFlow)
+					cumulativeDelta = OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk, CumulativeDeltaPeriod.Bar, 0);
 			}
 			else if (State == State.DataLoaded)
 			{
-				if (string.IsNullOrEmpty(outputFile))
+				try
 				{
-					string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-					outputFile = $"{Instrument.FullName.Replace(" ", "").Replace("-", "")}_{timestamp}.csv";
+					if (string.IsNullOrEmpty(outputPath))
+					{
+						Print("Exporter: Output Path is blank. No file was written.");
+						return;
+					}
+
+					Directory.CreateDirectory(outputPath);
+
+					string fileName = outputFile;
+					if (string.IsNullOrEmpty(fileName))
+					{
+						string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+						fileName = $"{Instrument.FullName.Replace(" ", "").Replace("-", "")}_{timestamp}.csv";
+					}
+
+					string header   = string.Join(",", BuildHeaderColumns());
+					string fullPath = Path.Combine(outputPath, fileName);
+
+					if (File.Exists(fullPath) && new FileInfo(fullPath).Length > 0)
+					{
+						string existingHeader;
+						using (var reader = new StreamReader(fullPath))
+							existingHeader = reader.ReadLine();
+
+						if (existingHeader != header)
+						{
+							string stamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+							fileName = $"{Path.GetFileNameWithoutExtension(fileName)}_{stamp}.csv";
+							fullPath = Path.Combine(outputPath, fileName);
+							Print("Exporter: column selection changed, starting a new file.");
+						}
+					}
+
+					bool writeHeader = !File.Exists(fullPath) || new FileInfo(fullPath).Length == 0;
+					if (writeHeader)
+					{
+						using (StreamWriter writer = File.CreateText(fullPath))
+							writer.WriteLine(header);
+					}
+
+					sw = File.AppendText(fullPath);
+					sw.AutoFlush = true;
+					Print("Exporter writing " + fullPath);
 				}
-				string fullPath = Path.Combine(outputPath, outputFile);
-				if (!File.Exists(fullPath))
+				catch (Exception ex)
 				{
-					using (StreamWriter writer = File.CreateText(fullPath))
-						writer.WriteLine(string.Join(",", BuildHeaderColumns()));
+					Print("Exporter could not open the output file: " + ex.Message);
 				}
-				else if (new FileInfo(fullPath).Length == 0)
-				{
-					using (StreamWriter writer = File.AppendText(fullPath))
-						writer.WriteLine(string.Join(",", BuildHeaderColumns()));
-				}
-				sw = File.AppendText(fullPath);
-				sw.AutoFlush = true;
 			}
 		}
 
 		protected override void OnBarUpdate()
 		{
+			// Order-flow indicators add a tick series. Ignore those callbacks so
+			// Time[1] / Close[1] are always the primary series.
+			if (BarsInProgress != 0) return;
 			if (!IsTradingTime()) return;
-			if (CurrentBars[0] < BarsRequiredToTrade) return;
+			if (CurrentBar < MinimumBarIndex()) return;
+			if (sw == null || writeFailed) return;
 
 			// Update trend state — always runs regardless of export group toggles
 			currentCloseHigher = Close[0] > Close[1];
@@ -569,7 +622,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 				trendSequence++;
 			priorCloseHigher = currentCloseHigher;
 
-			sw.WriteLine(string.Join(",", BuildDataColumns()));
+			try
+			{
+				sw.WriteLine(string.Join(",", BuildDataColumns()));
+			}
+			catch (Exception ex)
+			{
+				writeFailed = true;
+				Print("Exporter stopped writing: " + ex.Message);
+				try { if (sw != null) { sw.Close(); sw.Dispose(); sw = null; } } catch { }
+			}
 		}
 
 		#endregion
