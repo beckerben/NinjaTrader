@@ -15,3 +15,12 @@ A few disclaimers here.  I almost made this repository private but opted to make
 * Code files are completely independent and are individual experiments either based on something I have seen, read or dreamed up to see if there's anything viable.
 * The code here could be incomplete or full of bugs.  It may be untested and raw and will be in the last state I left it which may not even compile.
 * Basically, no warranties here, view & use at your own peril.
+
+## License
+
+My own code in this repository is released under the [MIT License](LICENSE).
+
+A few files are third-party code and keep their original licenses, which are noted in each file's header:
+
+* `Indicators/PriceActionSwing/*` by dorschden, licensed [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) (non-commercial use only)
+* `Indicators/RMI.cs` by Trendseek

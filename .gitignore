@@ -3,6 +3,7 @@
 
 # But don't ignore README.md
 !README.md
+!LICENSE
 
 # Don't ignore the Indicators folder and its contents
 !Indicators/
@@ -15,3 +16,15 @@
 
 # NinjaTrader-provided source (copyright NinjaTrader) - do not commit
 **/@*
+
+# Third-party / commercial code - keep locally, do not publish
+Indicators/fluxtp_FluxScalpelSignal_NT8.cs
+Indicators/dpBMD.cs
+Indicators/dpDPO.cs
+Indicators/dpQGP.cs
+Indicators/dpXRAY.cs
+Indicators/StochasticsFastShaded.cs
+Indicators/dpLRL.cs
+Indicators/BreakawayFairValueGaps.cs
+Strategies/TrailBuilderExample.cs
+Indicators/TrueStrength/BiTsiPlus.cs
