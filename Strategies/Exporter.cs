@@ -32,6 +32,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private bool   currentCloseHigher = false;
 		private bool   currentReversal   = false;
 		private OrderFlowCumulativeDelta cumulativeDelta;
+		private bool   writeFailed;
 
 		#endregion
 
@@ -44,6 +45,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 			int startMins = Start_Time.Hour * 60 + Start_Time.Minute;
 			int endMins   = End_Time.Hour   * 60 + End_Time.Minute;
 			return barMins >= startMins && barMins < endMins;
+		}
+
+		/// <summary>
+		/// Raw OHLCV and FVG only need the prior bar. Every other group pulls in
+		/// indicators with long lookbacks, so those runs keep BarsRequiredToTrade.
+		/// </summary>
+		private int MinimumBarIndex()
+		{
+			bool longLookback = Export_OHLCV_Normalized || Export_Trend || Export_Momentum
+				|| Export_Volatility || Export_Volume || Export_Pivots
+				|| Export_OrderFlow || Export_Custom || Export_MovingAverages;
+			return longLookback ? BarsRequiredToTrade : 1;
 		}
 
 		/// <summary>
@@ -69,6 +82,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private string ATRNorm(Func<double> getPrice)
 		{
 			return V(() => Math.Round((getPrice() - Close[0]) / ATR(14)[0], 4));
+		}
+
+		/// <summary>
+		/// ATRNorm variant for daily pivot levels. Returns empty string when the pivot
+		/// value is zero or negative, which happens when no prior session data has
+		/// been loaded yet (first trading day of a historical run).
+		/// </summary>
+		private string PivotNorm(double price)
+		{
+			return price > 0 ? V(() => Math.Round((price - Close[0]) / ATR(14)[0], 4)) : "";
 		}
 
 		private List<string> BuildHeaderColumns()
@@ -103,7 +126,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"mama_default", "mama_fama",
 					"trix", "trix_signal",
 					"tsf", "tsi",
-					"vortex_viplus", "vortex_viminus"
+					"vortex_viplus", "vortex_viminus",
+					"ichimoku_tenkan", "ichimoku_kijun", "ichimoku_spana", "ichimoku_spanb",
+					"swing_high", "swing_low"
 				});
 
 			if (Export_Momentum)
@@ -132,7 +157,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"kama",
 					"keltner_lower", "keltner_mean", "keltner_upper",
 					"parabolic_sar",
-					"relativevigorindex", "rsquared", "stddev"
+					"relativevigorindex", "rsquared", "stddev",
+					"regchannel_upper", "regchannel_middle", "regchannel_lower"
 				});
 
 			if (Export_Volume)
@@ -140,7 +166,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"adl", "obv",
 					"chaikinmoneyflow", "chaikinoscillator",
 					"volma", "volume_oscillator", "vroc",
-					"buysell_buypressure", "buysell_sellpressure"
+					"buysell_buypressure", "buysell_sellpressure",
+					"volumeupdown_up", "volumeupdown_down"
 				});
 
 			if (Export_Pivots)
@@ -186,6 +213,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 					"alligator_jaw", "alligator_teeth", "alligator_lips",
 					"highestlowestlines_high", "highestlowestlines_mid", "highestlowestlines_low"
 				});
+
+			if (Export_MovingAverages)
+			{
+				int[] periods = { 9, 14, 21, 50, 100, 150, 200 };
+				string[] types = { "ema", "sma", "wma", "hma", "dema", "tema", "t3", "tma", "vma", "vwma", "zlema" };
+				foreach (string t in types)
+					foreach (int p in periods)
+						cols.Add($"{t}_{p}");
+			}
 
 			return cols;
 		}
@@ -248,6 +284,17 @@ namespace NinjaTrader.NinjaScript.Strategies
 				cols.Add(V(() => Math.Round(TSI(3, 14)[0], 0)));
 				cols.Add(V(() => Math.Round(Vortex(14).VIPlus[0], 1)));
 				cols.Add(V(() => Math.Round(Vortex(14).VIMinus[0], 1)));
+				double ichiTenkan = (MAX(High, 9)[0]  + MIN(Low, 9)[0])  / 2.0;
+				double ichiKijun  = (MAX(High, 26)[0] + MIN(Low, 26)[0]) / 2.0;
+				double ichiSpanA  = (ichiTenkan + ichiKijun) / 2.0;
+				double ichiSpanB  = (MAX(High, 52)[0] + MIN(Low, 52)[0]) / 2.0;
+				cols.Add(ATRNorm(() => ichiTenkan));
+				cols.Add(ATRNorm(() => ichiKijun));
+				cols.Add(ATRNorm(() => ichiSpanA));
+				cols.Add(ATRNorm(() => ichiSpanB));
+				var swg = Swing(5);
+				cols.Add(swg.SwingHigh[0] > 0 ? ATRNorm(() => swg.SwingHigh[0]) : "");
+				cols.Add(swg.SwingLow[0]  > 0 ? ATRNorm(() => swg.SwingLow[0])  : "");
 			}
 
 			if (Export_Momentum)
@@ -302,6 +349,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 				cols.Add(V(() => Math.Round(RelativeVigorIndex(10)[0], 2)));
 				cols.Add(V(() => Math.Round(RSquared(8)[0], 2)));
 				cols.Add(V(() => Math.Round(StdDev(14)[0], 1)));
+				var rc = RegressionChannel(35, 2);
+				cols.Add(ATRNorm(() => rc.Upper[0]));
+				cols.Add(ATRNorm(() => rc.Middle[0]));
+				cols.Add(ATRNorm(() => rc.Lower[0]));
 			}
 
 			if (Export_Volume)
@@ -315,49 +366,53 @@ namespace NinjaTrader.NinjaScript.Strategies
 				cols.Add(V(() => Math.Round(VROC(14, 3)[0], 0)));
 				cols.Add(V(() => Math.Round(BuySellPressure().BuyPressure[0], 0)));
 				cols.Add(V(() => Math.Round(BuySellPressure().SellPressure[0], 0)));
+				var vud = VolumeUpDown();
+				cols.Add(V(() => vud.UpVolume[0]));
+				cols.Add(V(() => vud.DownVolume[0]));
 			}
 
 			if (Export_Pivots)
 			{
 				var cam = CamarillaPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20);
-				cols.Add(ATRNorm(() => cam.R1[0]));
-				cols.Add(ATRNorm(() => cam.R2[0]));
-				cols.Add(ATRNorm(() => cam.R3[0]));
-				cols.Add(ATRNorm(() => cam.R4[0]));
-				cols.Add(ATRNorm(() => cam.S1[0]));
-				cols.Add(ATRNorm(() => cam.S2[0]));
-				cols.Add(ATRNorm(() => cam.S3[0]));
-				cols.Add(ATRNorm(() => cam.S4[0]));
+				cols.Add(PivotNorm(cam.R1[0]));
+				cols.Add(PivotNorm(cam.R2[0]));
+				cols.Add(PivotNorm(cam.R3[0]));
+				cols.Add(PivotNorm(cam.R4[0]));
+				cols.Add(PivotNorm(cam.S1[0]));
+				cols.Add(PivotNorm(cam.S2[0]));
+				cols.Add(PivotNorm(cam.S3[0]));
+				cols.Add(PivotNorm(cam.S4[0]));
 				var fib = FibonacciPivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20);
-				cols.Add(ATRNorm(() => fib.Pp[0]));
-				cols.Add(ATRNorm(() => fib.R1[0]));
-				cols.Add(ATRNorm(() => fib.R2[0]));
-				cols.Add(ATRNorm(() => fib.R3[0]));
-				cols.Add(ATRNorm(() => fib.S1[0]));
-				cols.Add(ATRNorm(() => fib.S2[0]));
-				cols.Add(ATRNorm(() => fib.S3[0]));
+				cols.Add(PivotNorm(fib.Pp[0]));
+				cols.Add(PivotNorm(fib.R1[0]));
+				cols.Add(PivotNorm(fib.R2[0]));
+				cols.Add(PivotNorm(fib.R3[0]));
+				cols.Add(PivotNorm(fib.S1[0]));
+				cols.Add(PivotNorm(fib.S2[0]));
+				cols.Add(PivotNorm(fib.S3[0]));
 				var piv = Pivots(PivotRange.Daily, HLCCalculationMode.CalcFromIntradayData, 0, 0, 0, 20);
-				cols.Add(ATRNorm(() => piv.Pp[0]));
-				cols.Add(ATRNorm(() => piv.R1[0]));
-				cols.Add(ATRNorm(() => piv.R2[0]));
-				cols.Add(ATRNorm(() => piv.R3[0]));
-				cols.Add(ATRNorm(() => piv.S1[0]));
-				cols.Add(ATRNorm(() => piv.S2[0]));
-				cols.Add(ATRNorm(() => piv.S3[0]));
+				cols.Add(PivotNorm(piv.Pp[0]));
+				cols.Add(PivotNorm(piv.R1[0]));
+				cols.Add(PivotNorm(piv.R2[0]));
+				cols.Add(PivotNorm(piv.R3[0]));
+				cols.Add(PivotNorm(piv.S1[0]));
+				cols.Add(PivotNorm(piv.S2[0]));
+				cols.Add(PivotNorm(piv.S3[0]));
 				var woo = WoodiesPivots(HLCCalculationModeWoodie.CalcFromIntradayData, 20);
-				cols.Add(ATRNorm(() => woo.PP[0]));
-				cols.Add(ATRNorm(() => woo.R1[0]));
-				cols.Add(ATRNorm(() => woo.R2[0]));
-				cols.Add(ATRNorm(() => woo.S1[0]));
-				cols.Add(ATRNorm(() => woo.S2[0]));
+				cols.Add(PivotNorm(woo.PP[0]));
+				cols.Add(PivotNorm(woo.R1[0]));
+				cols.Add(PivotNorm(woo.R2[0]));
+				cols.Add(PivotNorm(woo.S1[0]));
+				cols.Add(PivotNorm(woo.S2[0]));
 				var cdohlc = CurrentDayOHL();
-				cols.Add(ATRNorm(() => cdohlc.CurrentOpen[0]));
-				cols.Add(ATRNorm(() => cdohlc.CurrentLow[0]));
-				cols.Add(ATRNorm(() => cdohlc.CurrentHigh[0]));
-				cols.Add(ATRNorm(() => PriorDayOHLC().PriorOpen[0]));
-				cols.Add(ATRNorm(() => PriorDayOHLC().PriorHigh[0]));
-				cols.Add(ATRNorm(() => PriorDayOHLC().PriorLow[0]));
-				cols.Add(ATRNorm(() => PriorDayOHLC().PriorClose[0]));
+				cols.Add(PivotNorm(cdohlc.CurrentOpen[0]));
+				cols.Add(PivotNorm(cdohlc.CurrentLow[0]));
+				cols.Add(PivotNorm(cdohlc.CurrentHigh[0]));
+				var pd = PriorDayOHLC();
+				cols.Add(PivotNorm(pd.PriorOpen[0]));
+				cols.Add(PivotNorm(pd.PriorHigh[0]));
+				cols.Add(PivotNorm(pd.PriorLow[0]));
+				cols.Add(PivotNorm(pd.PriorClose[0]));
 			}
 
 			if (Export_OrderFlow)
@@ -419,6 +474,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 				cols.Add(ATRNorm(() => HighestLowestLines(21).LowestLow[0]));
 			}
 
+			if (Export_MovingAverages)
+			{
+				int[] periods = { 9, 14, 21, 50, 100, 150, 200 };
+				foreach (int p in periods) cols.Add(ATRNorm(() => EMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => SMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => WMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => HMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => DEMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => TEMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => T3(p, 3, 0.7)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => TMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => VMA(p, p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => VWMA(p)[0]));
+				foreach (int p in periods) cols.Add(ATRNorm(() => ZLEMA(p)[0]));
+			}
+
 			return cols;
 		}
 
@@ -446,7 +517,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				TraceOrders								= false;
 				RealtimeErrorHandling					= RealtimeErrorHandling.StopCancelClose;
 				StopTargetHandling						= StopTargetHandling.PerEntryExecution;
-				BarsRequiredToTrade						= 1;
+				BarsRequiredToTrade						= 250;
 				IsInstantiatedOnEachOptimizationIteration = true;
 				// Output
 				outputPath  = "C:\\Temp";
@@ -464,6 +535,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				Export_OrderFlow        = true;
 				Export_FVG              = true;
 				Export_Custom           = true;
+				Export_MovingAverages   = true;
 			}
 			else if (State == State.Terminated)
 			{
@@ -471,35 +543,75 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			else if (State == State.Configure)
 			{
-				cumulativeDelta = OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk, CumulativeDeltaPeriod.Bar, 0);
+				// Only host the tick series when that group is actually exported.
+				// Constructing it unconditionally aborts an OHLCV-only run on charts
+				// that do not have tick replay.
+				if (Export_OrderFlow)
+					cumulativeDelta = OrderFlowCumulativeDelta(CumulativeDeltaType.BidAsk, CumulativeDeltaPeriod.Bar, 0);
 			}
 			else if (State == State.DataLoaded)
 			{
-				if (string.IsNullOrEmpty(outputFile))
+				try
 				{
-					string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-					outputFile = $"{Instrument.FullName.Replace(" ", "").Replace("-", "")}_{timestamp}.csv";
+					if (string.IsNullOrEmpty(outputPath))
+					{
+						Print("Exporter: Output Path is blank. No file was written.");
+						return;
+					}
+
+					Directory.CreateDirectory(outputPath);
+
+					string fileName = outputFile;
+					if (string.IsNullOrEmpty(fileName))
+					{
+						string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+						fileName = $"{Instrument.FullName.Replace(" ", "").Replace("-", "")}_{timestamp}.csv";
+					}
+
+					string header   = string.Join(",", BuildHeaderColumns());
+					string fullPath = Path.Combine(outputPath, fileName);
+
+					if (File.Exists(fullPath) && new FileInfo(fullPath).Length > 0)
+					{
+						string existingHeader;
+						using (var reader = new StreamReader(fullPath))
+							existingHeader = reader.ReadLine();
+
+						if (existingHeader != header)
+						{
+							string stamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+							fileName = $"{Path.GetFileNameWithoutExtension(fileName)}_{stamp}.csv";
+							fullPath = Path.Combine(outputPath, fileName);
+							Print("Exporter: column selection changed, starting a new file.");
+						}
+					}
+
+					bool writeHeader = !File.Exists(fullPath) || new FileInfo(fullPath).Length == 0;
+					if (writeHeader)
+					{
+						using (StreamWriter writer = File.CreateText(fullPath))
+							writer.WriteLine(header);
+					}
+
+					sw = File.AppendText(fullPath);
+					sw.AutoFlush = true;
+					Print("Exporter writing " + fullPath);
 				}
-				string fullPath = Path.Combine(outputPath, outputFile);
-				if (!File.Exists(fullPath))
+				catch (Exception ex)
 				{
-					using (StreamWriter writer = File.CreateText(fullPath))
-						writer.WriteLine(string.Join(",", BuildHeaderColumns()));
+					Print("Exporter could not open the output file: " + ex.Message);
 				}
-				else if (new FileInfo(fullPath).Length == 0)
-				{
-					using (StreamWriter writer = File.AppendText(fullPath))
-						writer.WriteLine(string.Join(",", BuildHeaderColumns()));
-				}
-				sw = File.AppendText(fullPath);
-				sw.AutoFlush = true;
 			}
 		}
 
 		protected override void OnBarUpdate()
 		{
+			// Order-flow indicators add a tick series. Ignore those callbacks so
+			// Time[1] / Close[1] are always the primary series.
+			if (BarsInProgress != 0) return;
 			if (!IsTradingTime()) return;
-			if (CurrentBars[0] < BarsRequiredToTrade) return;
+			if (CurrentBar < MinimumBarIndex()) return;
+			if (sw == null || writeFailed) return;
 
 			// Update trend state — always runs regardless of export group toggles
 			currentCloseHigher = Close[0] > Close[1];
@@ -510,7 +622,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 				trendSequence++;
 			priorCloseHigher = currentCloseHigher;
 
-			sw.WriteLine(string.Join(",", BuildDataColumns()));
+			try
+			{
+				sw.WriteLine(string.Join(",", BuildDataColumns()));
+			}
+			catch (Exception ex)
+			{
+				writeFailed = true;
+				Print("Exporter stopped writing: " + ex.Message);
+				try { if (sw != null) { sw.Close(); sw.Dispose(); sw = null; } } catch { }
+			}
 		}
 
 		#endregion
@@ -544,7 +665,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public bool Export_OHLCV_Normalized { get; set; }
 
 		[NinjaScriptProperty]
-		[Display(Name = "Trend Indicators", Description = "ADX, ADXR, Aroon, DM, DMI, LinReg family, MACD, MAMA, TRIX, TSF, TSI, Vortex.", Order = 3, GroupName = "Export Groups")]
+		[Display(Name = "Trend Indicators", Description = "ADX, ADXR, Aroon, DM, DMI, LinReg family, MACD, MAMA, TRIX, TSF, TSI, Vortex, Ichimoku Cloud (Tenkan/Kijun/SpanA/SpanB), Swing (High/Low).", Order = 3, GroupName = "Export Groups")]
 		public bool Export_Trend { get; set; }
 
 		[NinjaScriptProperty]
@@ -552,11 +673,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 		public bool Export_Momentum { get; set; }
 
 		[NinjaScriptProperty]
-		[Display(Name = "Volatility Indicators", Description = "ATR, APZ, Bollinger, BOP, ChaikinVolatility, DonchianChannel, DoubleStochastics, FisherTransform, KAMA, Keltner, ParabolicSAR, RSquared, RelativeVigor, StdDev.", Order = 5, GroupName = "Export Groups")]
+		[Display(Name = "Volatility Indicators", Description = "ATR, APZ, Bollinger, BOP, ChaikinVolatility, DonchianChannel, DoubleStochastics, FisherTransform, KAMA, Keltner, ParabolicSAR, RSquared, RelativeVigor, StdDev, RegressionChannel (Upper/Middle/Lower).", Order = 5, GroupName = "Export Groups")]
 		public bool Export_Volatility { get; set; }
 
 		[NinjaScriptProperty]
-		[Display(Name = "Volume Indicators", Description = "ADL, OBV, ChaikinMoneyFlow, ChaikinOscillator, VOLMA, VolumeOscillator, VROC, BuySellPressure.", Order = 6, GroupName = "Export Groups")]
+		[Display(Name = "Volume Indicators", Description = "ADL, OBV, ChaikinMoneyFlow, ChaikinOscillator, VOLMA, VolumeOscillator, VROC, BuySellPressure, VolumeUpDown (Up/Down).", Order = 6, GroupName = "Export Groups")]
 		public bool Export_Volume { get; set; }
 
 		[NinjaScriptProperty]
@@ -574,6 +695,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 		[NinjaScriptProperty]
 		[Display(Name = "Custom / Other", Description = "WoodiesCCI, Wiseman Awesome Oscillator, Alligator (Jaw/Teeth/Lips), HighestLowestLines.", Order = 10, GroupName = "Export Groups")]
 		public bool Export_Custom { get; set; }
+
+		[NinjaScriptProperty]
+		[Display(Name = "Moving Averages", Description = "EMA, SMA, WMA, HMA, DEMA, TEMA, T3, TMA, VMA, VWMA, ZLEMA — each at periods 9, 14, 21, 50, 100, 150, 200 (77 columns, ATR-normalized).", Order = 11, GroupName = "Export Groups")]
+		public bool Export_MovingAverages { get; set; }
 
 		#endregion
 	}

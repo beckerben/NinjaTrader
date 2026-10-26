@@ -12,3 +12,6 @@
 !Strategies/
 !Strategies/**
 **/.*
+
+# NinjaTrader-provided source (copyright NinjaTrader) - do not commit
+**/@*
